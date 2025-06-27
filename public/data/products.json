@@ -1,0 +1,442 @@
+[
+  {
+    "name": "Pizza Muzzarella",
+    "precio": 9000,
+    "category": "Pizzas",
+    "descripcion": "Salsa de tomate, muzzarella y condimentos.",
+    "imageUrl": "https://placehold.co/400x300/E1A04F/FFFFFF?text=PizzaMuzzarella",
+    "stock": 20
+  },
+  {
+    "name": "Pizza Muzzarella con Jamón",
+    "precio": 10000,
+    "category": "Pizzas",
+    "descripcion": "Salsa de tomate, muzzarella, jamón y condimentos.",
+    "imageUrl": "https://placehold.co/400x300/E1A04F/FFFFFF?text=PizzaJamon",
+    "stock": 15
+  },
+  {
+    "name": "Pizza con Jamón y Huevo",
+    "precio": 11000,
+    "category": "Pizzas",
+    "descripcion": "Salsa de tomate, muzzarella, jamón, huevo duro y condimentos.",
+    "imageUrl": "https://placehold.co/400x300/E1A04F/FFFFFF?text=PizzaJamonHuevo",
+    "stock": 12
+  },
+  {
+    "name": "Pizza Napolitana",
+    "precio": 10000,
+    "category": "Pizzas",
+    "descripcion": "Salsa de tomate, muzzarella, rodajas de tomate y orégano.",
+    "imageUrl": "https://placehold.co/400x300/E1A04F/FFFFFF?text=PizzaNapolitana",
+    "stock": 18
+  },
+  {
+    "name": "Pizza Napolitana con Jamón",
+    "precio": 12000,
+    "category": "Pizzas",
+    "descripcion": "Salsa de tomate, muzzarella, jamón, tomate, ajo y condimentos.",
+    "imageUrl": "https://placehold.co/400x300/E1A04F/FFFFFF?text=PizzaNapolitanaJamon",
+    "stock": 10
+  },
+  {
+    "name": "Pizza Americana",
+    "precio": 14000,
+    "category": "Pizzas",
+    "descripcion": "Salsa de tomate, muzzarella, panceta y condimentos.",
+    "imageUrl": "https://placehold.co/400x300/E1A04F/FFFFFF?text=PizzaAmericana",
+    "stock": 8
+  },
+  {
+    "name": "Pizza Primavera",
+    "precio": 13000,
+    "category": "Pizzas",
+    "descripcion": "Salsa de tomate, muzzarella, jamón, morrones y verdeo.",
+    "imageUrl": "https://placehold.co/400x300/E1A04F/FFFFFF?text=PizzaPrimavera",
+    "stock": 10
+  },
+  {
+    "name": "Pizza Salchipizza",
+    "precio": 11000,
+    "category": "Pizzas",
+    "descripcion": "Salsa de tomate, muzzarella, salchichas y papas fritas.",
+    "imageUrl": "https://placehold.co/400x300/E1A04F/FFFFFF?text=PizzaSalchipizza",
+    "stock": 10
+  },
+  {
+    "name": "Pizza Salchipapa",
+    "precio": 13000,
+    "category": "Pizzas",
+    "descripcion": "Salsa de tomate, muzzarella, papas fritas y cheddar.",
+    "imageUrl": "https://placehold.co/400x300/E1A04F/FFFFFF?text=PizzaSalchipapa",
+    "stock": 9
+  },
+  {
+    "name": "Pizza Caprichosa",
+    "precio": 12000,
+    "category": "Pizzas",
+    "descripcion": "Salsa de tomate, muzzarella, jamón, aceitunas y morrones.",
+    "imageUrl": "https://placehold.co/400x300/E1A04F/FFFFFF?text=PizzaCaprichosa",
+    "stock": 11
+  },
+  {
+    "name": "Pizza Calabrese",
+    "precio": 12000,
+    "category": "Pizzas",
+    "descripcion": "Salsa de tomate, muzzarella, longaniza calabresa y condimentos.",
+    "imageUrl": "https://placehold.co/400x300/E1A04F/FFFFFF?text=PizzaCalabrese",
+    "stock": 13
+  },
+  {
+    "name": "Pizza Anchoas",
+    "precio": 13000,
+    "category": "Pizzas",
+    "descripcion": "Salsa de tomate, muzzarella y anchoas.",
+    "imageUrl": "https://placehold.co/400x300/E1A04F/FFFFFF?text=PizzaAnchoas",
+    "stock": 7
+  },
+  {
+    "name": "Pizza Fugazzeta",
+    "precio": 11000,
+    "category": "Pizzas",
+    "descripcion": "Muzzarella y cebolla caramelizada.",
+    "imageUrl": "https://placehold.co/400x300/E1A04F/FFFFFF?text=PizzaFugazzeta",
+    "stock": 15
+  },
+  {
+    "name": "Pizza Fugazzeta Rellena",
+    "precio": 14000,
+    "category": "Pizzas",
+    "descripcion": "Doble capa de muzzarella y cebolla, bien rellena.",
+    "imageUrl": "https://placehold.co/400x300/E1A04F/FFFFFF?text=PizzaFugazzetaRellena",
+    "stock": 9
+  },
+  {
+    "name": "Pizza Fainá",
+    "precio": 7000,
+    "category": "Pizzas",
+    "descripcion": "Masa de harina de garbanzo, ideal para acompañar.",
+    "imageUrl": "https://placehold.co/400x300/E1A04F/FFFFFF?text=Faina",
+    "stock": 25
+  },
+  {
+    "name": "Pizza Calzone",
+    "precio": 12000,
+    "category": "Pizzas",
+    "descripcion": "Pizza rellena con salsa de tomate, muzzarella, jamón y huevo.",
+    "imageUrl": "https://placehold.co/400x300/E1A04F/FFFFFF?text=Calzone",
+    "stock": 8
+  },
+  {
+    "name": "Empanada de Carne",
+    "precio": 350,
+    "category": "Empanadas y Canastitas",
+    "descripcion": "Jugosa empanada de carne picada, clásica.",
+    "imageUrl": "https://placehold.co/400x300/CD853F/FFF8DC?text=EmpanadaCarne",
+    "stock": 50
+  },
+  {
+    "name": "Empanada de Pollo",
+    "precio": 350,
+    "category": "Empanadas y Canastitas",
+    "descripcion": "Empanada con tierno relleno de pollo desmenuzado.",
+    "imageUrl": "https://placehold.co/400x300/CD853F/FFF8DC?text=EmpanadaPollo",
+    "stock": 45
+  },
+  {
+    "name": "Empanada de Jamón y Queso",
+    "precio": 350,
+    "category": "Empanadas y Canastitas",
+    "descripcion": "Clásica combinación de jamón y queso fundido.",
+    "imageUrl": "https://placehold.co/400x300/CD853F/FFF8DC?text=EmpanadaJyQ",
+    "stock": 40
+  },
+  {
+    "name": "Empanada de Verdura",
+    "precio": 350,
+    "category": "Empanadas y Canastitas",
+    "descripcion": "Relleno saludable de acelga y ricota.",
+    "imageUrl": "https://placehold.co/400x300/CD853F/FFF8DC?text=EmpanadaVerdura",
+    "stock": 35
+  },
+  {
+    "name": "Empanada de Humita",
+    "precio": 350,
+    "category": "Empanadas y Canastitas",
+    "descripcion": "Relleno cremoso de choclo y especias.",
+    "imageUrl": "https://placehold.co/400x300/CD853F/FFF8DC?text=EmpanadaHumita",
+    "stock": 30
+  },
+  {
+    "name": "Empanada de Roquefort y Apio",
+    "precio": 380,
+    "category": "Empanadas y Canastitas",
+    "descripcion": "Una combinación audaz de roquefort y apio fresco.",
+    "imageUrl": "https://placehold.co/400x300/CD853F/FFF8DC?text=EmpanadaRoquefort",
+    "stock": 25
+  },
+  {
+    "name": "Empanada de Cebolla y Queso",
+    "precio": 350,
+    "category": "Empanadas y Canastitas",
+    "descripcion": "Suave cebolla caramelizada con queso.",
+    "imageUrl": "https://placehold.co/400x300/CD853F/FFF8DC?text=EmpanadaCebollaQueso",
+    "stock": 38
+  },
+  {
+    "name": "Empanada de Zapallo y Queso",
+    "precio": 350,
+    "category": "Empanadas y Canastitas",
+    "descripcion": "Dulce zapallo con un toque de queso.",
+    "imageUrl": "https://placehold.co/400x300/CD853F/FFF8DC?text=EmpanadaZapallo",
+    "stock": 32
+  },
+  {
+    "name": "Empanada de Choclo",
+    "precio": 350,
+    "category": "Empanadas y Canastitas",
+    "descripcion": "Relleno cremoso de granos de choclo.",
+    "imageUrl": "https://placehold.co/400x300/CD853F/FFF8DC?text=EmpanadaChoclo",
+    "stock": 30
+  },
+  {
+    "name": "Canastita de Pollo",
+    "precio": 380,
+    "category": "Empanadas y Canastitas",
+    "descripcion": "Canastita rellena de tierno pollo desmenuzado y especias.",
+    "imageUrl": "https://placehold.co/400x300/E6B0AA/8A2BE2?text=CanastitaPollo",
+    "stock": 25
+  },
+  {
+    "name": "Canastita de Jamón y Queso",
+    "precio": 380,
+    "category": "Empanadas y Canastitas",
+    "descripcion": "Clásica canastita con abundante jamón y queso fundido.",
+    "imageUrl": "https://placehold.co/400x300/E6B0AA/8A2BE2?text=CanastitaJyQ",
+    "stock": 28
+  },
+  {
+    "name": "Canastita de Verdura",
+    "precio": 380,
+    "category": "Empanadas y Canastitas",
+    "descripcion": "Canastita rellena de acelga y ricota, ligera y sabrosa.",
+    "imageUrl": "https://placehold.co/400x300/E6B0AA/8A2BE2?text=CanastitaVerdura",
+    "stock": 22
+  },
+  {
+    "name": "Canastita de Caprese",
+    "precio": 400,
+    "category": "Empanadas y Canastitas",
+    "descripcion": "Canastita con tomate, albahaca y muzzarella, fresca y aromática.",
+    "imageUrl": "https://placehold.co/400x300/E6B0AA/8A2BE2?text=CanastitaCaprese",
+    "stock": 20
+  },
+  {
+    "name": "Canastita de Roquefort",
+    "precio": 400,
+    "category": "Empanadas y Canastitas",
+    "descripcion": "Canastita con intenso sabor a queso roquefort.",
+    "imageUrl": "https://placehold.co/400x300/E6B0AA/8A2BE2?text=CanastitaRoquefort",
+    "stock": 18
+  },
+  {
+    "name": "Pastel de Papa",
+    "precio": 2500,
+    "category": "Platos Especiales",
+    "descripcion": "Clásico pastel de papa con carne picada y capa de puré gratinado.",
+    "imageUrl": "https://placehold.co/400x300/8B4513/F0FFF0?text=PastelDePapa",
+    "stock": 10
+  },
+  {
+    "name": "Pollo al Horno con Papas",
+    "precio": 2800,
+    "category": "Platos Especiales",
+    "descripcion": "Medio pollo al horno con piel crujiente y papas naturales.",
+    "imageUrl": "https://placehold.co/400x300/CD5C5C/FFFFFF?text=PolloAlHorno",
+    "stock": 10
+  },
+  {
+    "name": "Pollo al Horno con Puré",
+    "precio": 2800,
+    "category": "Platos Especiales",
+    "descripcion": "Medio pollo al horno con piel crujiente y cremoso puré de papas.",
+    "imageUrl": "https://placehold.co/400x300/CD5C5C/FFFFFF?text=PolloConPure",
+    "stock": 9
+  },
+  {
+    "name": "Guiso de Lentejas",
+    "precio": 1800,
+    "category": "Platos Especiales",
+    "descripcion": "Guiso sustancioso de lentejas con verduras y carne.",
+    "imageUrl": "https://placehold.co/400x300/6B8E23/F0FFF0?text=GuisoLentejas",
+    "stock": 15
+  },
+  {
+    "name": "Milanesa de Carne con Fritas",
+    "precio": 2500,
+    "category": "Platos Especiales",
+    "descripcion": "Milanesa de carne apanada y crujiente, acompañada de papas fritas.",
+    "imageUrl": "https://placehold.co/400x300/A0522D/F0F8FF?text=MilanesaConFritas",
+    "stock": 18
+  },
+  {
+    "name": "Milanesa de Pollo con Fritas",
+    "precio": 2500,
+    "category": "Platos Especiales",
+    "descripcion": "Milanesa de pollo apanada y jugosa, con papas fritas.",
+    "imageUrl": "https://placehold.co/400x300/A0522D/F0F8FF?text=MilanesaPolloFritas",
+    "stock": 18
+  },
+  {
+    "name": "Súper Milanesa de Carne",
+    "precio": 3000,
+    "category": "Platos Especiales",
+    "descripcion": "Milanesa de carne grande y completa, un clásico de La Abu Matie.",
+    "imageUrl": "https://placehold.co/400x300/A0522D/F0F8FF?text=SuperMilanesaCarne",
+    "stock": 10
+  },
+  {
+    "name": "Super Milanesa de Pollo",
+    "precio": 3000,
+    "category": "Platos Especiales",
+    "descripcion": "Milanesa de pollo grande y completa, con todo el sabor casero.",
+    "imageUrl": "https://placehold.co/400x300/A0522D/F0F8FF?text=SuperMilanesaPollo",
+    "stock": 10
+  },
+  {
+    "name": "Zapolllito Relleno de Carne",
+    "precio": 1800,
+    "category": "Platos Especiales",
+    "descripcion": "Zapallito relleno con carne picada y arroz, gratinado.",
+    "imageUrl": "https://placehold.co/400x300/8FBC8F/FFFFFF?text=ZapallitoRelleno",
+    "stock": 12
+  },
+  {
+    "name": "Zapolllito Relleno de Verdura",
+    "precio": 1700,
+    "category": "Platos Especiales",
+    "descripcion": "Zapallito relleno con verduras salteadas y arroz.",
+    "imageUrl": "https://placehold.co/400x300/8FBC8F/FFFFFF?text=ZapallitoVerdura",
+    "stock": 12
+  },
+  {
+    "name": "Tortilla de Papa (Chica)",
+    "precio": 1500,
+    "category": "Platos Especiales",
+    "descripcion": "Clásica tortilla de papas, jugosa por dentro y dorada por fuera.",
+    "imageUrl": "https://placehold.co/400x300/D2691E/FAEBD7?text=TortillaPapaChica",
+    "stock": 15
+  },
+  {
+    "name": "Tortilla de Papa (Grande)",
+    "precio": 2200,
+    "category": "Platos Especiales",
+    "descripcion": "Tortilla de papas tamaño familiar, ideal para compartir.",
+    "imageUrl": "https://placehold.co/400x300/D2691E/FAEBD7?text=TortillaPapaGrande",
+    "stock": 8
+  },
+  {
+    "name": "Pollito al Horno con Pure",
+    "precio": 2800,
+    "category": "Platos Especiales",
+    "descripcion": "Tierno pollito al horno con cremoso puré de papas.",
+    "imageUrl": "https://placehold.co/400x300/CD5C5C/FFFFFF?text=PollitoHornoPure",
+    "stock": 10
+  },
+  {
+    "name": "Albóndigas con Pure",
+    "precio": 2000,
+    "category": "Platos Especiales",
+    "descripcion": "Albóndigas caseras en salsa con cremoso puré de papas.",
+    "imageUrl": "https://placehold.co/400x300/8B4513/F0FFF0?text=AlbondigasPure",
+    "stock": 14
+  },
+  {
+    "name": "Milanesa de Berenjena con Pure",
+    "precio": 1800,
+    "category": "Platos Especiales",
+    "descripcion": "Milanesa de berenjena apanada, acompañada de puré de papas.",
+    "imageUrl": "https://placehold.co/400x300/8FBC8F/FFFFFF?text=MilanesaBerenjenaPure",
+    "stock": 15
+  },
+  {
+    "name": "Arroz con Pollo",
+    "precio": 2200,
+    "category": "Platos Especiales",
+    "descripcion": "Sabroso arroz con trozos de pollo, verduras y azafrán.",
+    "imageUrl": "https://placehold.co/400x300/DAA520/8B4513?text=ArrozConPollo",
+    "stock": 12
+  },
+  {
+    "name": "Fideos Caseros con Tuco",
+    "precio": 1700,
+    "category": "Platos Especiales",
+    "descripcion": "Fideos caseros al huevo, servidos con nuestra salsa de tuco tradicional.",
+    "imageUrl": "https://placehold.co/400x300/D2691E/FAEBD7?text=FideosTuco",
+    "stock": 15
+  },
+  {
+    "name": "Ñoquis Caseros con Tuco",
+    "precio": 1800,
+    "category": "Platos Especiales",
+    "descripcion": "Suaves ñoquis de papa hechos en casa, servidos con nuestra salsa de tuco tradicional.",
+    "imageUrl": "https://placehold.co/400x300/D2691E/FAEBD7?text=NoquisTuco",
+    "stock": 15
+  },
+  {
+    "name": "Ravioles de Ricota y Verdura",
+    "precio": 1900,
+    "category": "Platos Especiales",
+    "descripcion": "Ravioles frescos rellenos de ricota y espinaca.",
+    "imageUrl": "https://placehold.co/400x300/D2691E/FAEBD7?text=Ravioles",
+    "stock": 15
+  },
+  {
+    "name": "Sorrentinos de Ricota y Verdura",
+    "precio": 2000,
+    "category": "Platos Especiales",
+    "descripcion": "Grandes sorrentinos rellenos de ricota y verdura.",
+    "imageUrl": "https://placehold.co/400x300/D2691E/FAEBD7?text=Sorrentinos",
+    "stock": 12
+  },
+  {
+    "name": "Papas Fritas (Grandes)",
+    "precio": 900,
+    "category": "Papas Fritas",
+    "descripcion": "Porción grande de papas fritas caseras, crujientes.",
+    "imageUrl": "https://placehold.co/400x300/F8DE7E/8B4513?text=PapasFritasGrandes",
+    "stock": 40
+  },
+  {
+    "name": "Papas Fritas (Chicas)",
+    "precio": 600,
+    "category": "Papas Fritas",
+    "descripcion": "Porción chica de papas fritas caseras.",
+    "imageUrl": "https://placehold.co/400x300/F8DE7E/8B4513?text=PapasFritasChicas",
+    "stock": 50
+  },
+  {
+    "name": "Papas al Horno",
+    "precio": 800,
+    "category": "Papas Fritas",
+    "descripcion": "Papas rústicas asadas al horno con hierbas.",
+    "imageUrl": "https://placehold.co/400x300/D2B48C/5A5A5A?text=PapasAlHorno",
+    "stock": 30
+  },
+  {
+    "name": "Papas con Cheddar",
+    "precio": 1200,
+    "category": "Papas Fritas",
+    "descripcion": "Papas fritas bañadas en salsa de queso cheddar cremoso.",
+    "imageUrl": "https://placehold.co/400x300/FFD700/8B4513?text=PapasCheddar",
+    "stock": 25
+  },
+  {
+    "name": "Papas con Cheddar y Panceta",
+    "precio": 1400,
+    "category": "Papas Fritas",
+    "descripcion": "Papas fritas con salsa cheddar y crujientes trozos de panceta.",
+    "imageUrl": "https://placehold.co/400x300/FFD700/8B4513?text=PapasCheddarPanceta",
+    "stock": 20
+  }
+]

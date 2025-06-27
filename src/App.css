@@ -1,0 +1,272 @@
+/* src/App.css - Archivo de estilos principal para la aplicación */
+
+/* Importación de la fuente Poppins de Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+/* Aplicar Poppins como fuente principal a todo el HTML */
+html {
+  font-family: 'Poppins', sans-serif;
+  height: 100%; /* Asegura que el html ocupe el 100% del viewport */
+  overflow: visible; /* CRÍTICO: Asegura que el overflow sea manejado por la ventana, no por el HTML */
+}
+
+body {
+  height: 100%; /* Asegura que el body ocupe el 100% del html */
+  overflow: visible; /* CRÍTICO: Asegura que el overflow sea manejado por la ventana, no por el BODY */
+  margin: 0; /* Asegura que no haya márgenes por defecto en el body */
+  padding: 0; /* Asegura que no haya padding por defecto en el body */
+  
+}
+
+
+/* Animación para el título principal y elementos con 'animate-bounce-slow' */
+@keyframes bounce-slow {
+  0%, 100% {
+    transform: translateY(0); /* Posición inicial y final */
+  }
+  50% {
+    transform: translateY(-5px); /* Se eleva ligeramente en la mitad */
+  }
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 2s infinite; /* Aplica la animación cada 2 segundos, de forma infinita */
+}
+/* Animación de parpadeo para el texto del footer */
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5; /* O 0 para un parpadeo más fuerte */
+  }
+}
+
+.animate-blink {
+  animation: blink 1.5s infinite alternate; /* 1.5s de duración, infinito, alternando */
+}
+
+/* Animación para el contenido de las categorías y elementos con 'animate-fade-in-down' */
+/* Hace que el contenido aparezca suavemente desde arriba */
+@keyframes fade-in-down {
+  from {
+    opacity: 0; /* Empieza invisible */
+    transform: translateY(-10px); /* Ligeramente por encima de su posición final */
+  }
+  to {
+    opacity: 1; /* Termina completamente visible */
+    transform: translateY(0); /* En su posición final */
+  }
+}
+
+.animate-fade-in-down {
+  animation: fade-in-down 0.3s ease-out forwards; /* 0.3 segundos, con aceleración suave, mantiene el estado final */
+}
+
+/* Animaciones generales para modales (fondo, carrito, formulario de pedido) */
+/* Animación para el fondo que se desvanece (overlay) */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Animación para modales que se deslizan hacia arriba (entrada) */
+@keyframes slideInUp {
+  from { transform: translateY(100%); opacity: 0; } /* Empieza desde abajo, invisible */
+  to { transform: translateY(0); opacity: 1; } /* Termina en su posición, visible */
+}
+
+/* Animación para modales que se deslizan hacia abajo (salida) */
+@keyframes slideOutDown {
+  from { transform: translateY(0); opacity: 1; } /* Empieza en su posición, visible */
+  to { transform: translateY(100%); opacity: 0; } /* Termina abajo, invisible */
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 0.4s ease-out forwards;
+}
+
+.animate-slide-out-down {
+  animation: slideOutDown 0.4s ease-in forwards;
+}
+
+/* NUEVA ANIMACIÓN: para las estrellas en la sección de destacados */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg); /* Empieza sin rotación */
+  }
+  to {
+    transform: rotate(360deg); /* Gira una vuelta completa */
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 10s linear infinite; /* 10 segundos, velocidad constante, repetición infinita */
+}
+
+/* Estilos para la barra de desplazamiento personalizada (aplicados a elementos con la clase custom-scrollbar) */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 8px; /* Altura para scrollbars horizontales (como en los destacados) */
+  width: 8px;  /* Ancho para scrollbars verticales (como en los modales) */
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1; /* Fondo de la pista de la barra de desplazamiento */
+  border-radius: 10px; /* Bordes redondeados para la pista */
+}
+
+/* Estilos para la pista de la barra de desplazamiento en modo oscuro */
+.dark .custom-scrollbar::-webkit-scrollbar-track {
+  background: #333;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #888; /* Color del "pulgar" (el elemento que se arrastra) */
+  border-radius: 10px; /* Bordes redondeados para el pulgar */
+}
+
+/* Color del pulgar en modo oscuro */
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #555;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #555; /* Color del pulgar al pasar el ratón */
+}
+
+/* Color del pulgar en modo oscuro al pasar el ratón */
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #777;
+}
+
+/* Ocultar las flechas de spin en inputs numéricos en Chrome, Safari, Edge, Opera */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none; /* Elimina la apariencia por defecto del navegador */
+  margin: 0; /* Elimina el margen por defecto */
+}
+
+/* Ocultar las flechas de spin en inputs numéricos en Firefox */
+input[type="number"] {
+  appearance: textfield; /* Propiedad estándar para compatibilidad */
+  -moz-appearance: textfield; /* Restablece la apariencia para Firefox a un campo de texto normal */
+}
+
+/* ANIMACIONES PARA EL TÍTULO PRINCIPAL Y EFECTOS VISUALES */
+
+/* Animación de entrada del título (pop-in) - Consolidada */
+@keyframes title-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.7) translateY(-50px) rotateX(90deg); /* Más dramático */
+    filter: blur(20px) brightness(0.5); /* Desenfoque y brillo inicial */
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1) translateY(0) rotateX(-5deg); /* Sobrepasa un poco y se inclina */
+    filter: blur(0) brightness(1.2); /* Brillo momentáneo */
+  }
+  100% {
+    transform: scale(1) translateY(0) rotateX(0deg);
+    filter: blur(0) brightness(1);
+  }
+}
+
+.animate-title-pop-in {
+  animation: title-pop-in 1.2s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards; /* Curva de animación más elástica */
+}
+
+/* Animación de pulso lento para elementos específicos */
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 3s infinite ease-in-out;
+}
+
+/* Ocultar la barra de desplazamiento en elementos específicos */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
+
+/* Animación de llamas para el texto */
+@keyframes flame-flicker {
+  0%, 100% {
+    /* Estado base: brillo sutil */
+    text-shadow:
+      0 0 5px rgba(255, 165, 0, 0.7), /* Naranja sutil */
+      0 0 10px rgba(255, 69, 0, 0.5); /* Rojo-naranja sutil */
+    transform: translateY(0) scale(1);
+  }
+  20% {
+    /* Primer pico de llama */
+    text-shadow:
+      0 0 8px rgba(255, 165, 0, 0.9), /* Naranja más fuerte */
+      0 0 15px rgba(255, 69, 0, 0.7), /* Rojo-naranja más fuerte */
+      0 0 20px rgba(255, 215, 0, 0.4); /* Dorado sutil */
+    transform: translateY(-2px) scale(1.01);
+  }
+  40% {
+    /* Segundo pico de llama, ligeramente diferente */
+    text-shadow:
+      0 0 6px rgba(255, 140, 0, 0.8), /* Naranja oscuro */
+      0 0 12px rgba(255, 0, 0, 0.6), /* Rojo */
+      0 0 18px rgba(255, 255, 0, 0.3); /* Amarillo */
+    transform: translateY(0px) scale(1.0);
+  }
+  60% {
+    /* Tercer pico de llama */
+    text-shadow:
+      0 0 7px rgba(255, 120, 0, 0.85), /* Naranja */
+      0 0 14px rgba(255, 50, 0, 0.65), /* Naranja-rojo */
+      0 0 22px rgba(255, 230, 0, 0.45); /* Amarillo-dorado */
+    transform: translateY(-1px) scale(1.005);
+  }
+  80% {
+    /* Desvanecimiento antes de reiniciar */
+    text-shadow:
+      0 0 4px rgba(255, 165, 0, 0.6),
+      0 0 8px rgba(255, 69, 0, 0.4);
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-flame-text {
+  animation: flame-flicker 2s infinite ease-in-out; /* Velocidad y repetición */
+}
+
+/* Animación de "jiggle" para el icono de pizza */
+@keyframes pizza-jiggle {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  25% {
+    transform: translateY(-5px) scale(1.02); /* Pequeño salto hacia arriba y escala */
+  }
+  50% {
+    transform: translateY(0) scale(1);
+  }
+  75% {
+    transform: translateY(-2px) scale(1.01); /* Menor salto */
+  }
+}
+
+.animate-pizza-jiggle {
+  animation: pizza-jiggle 2s infinite ease-in-out; /* Animación de 2 segundos, infinita, con easing */
+}

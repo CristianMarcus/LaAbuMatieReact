@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Reglas para la colección de perfiles de usuario
+    // Permite que un usuario lea, cree, actualice y elimine su propio documento de perfil.
+    // Esto es CRUCIAL para que tu aplicación cargue o cree perfiles al iniciar sesión.
+    match /artifacts/{appId}/public/data/users/{userId} {
+      // Un usuario solo puede leer su propio perfil
+      allow read: if request.auth != null && request.auth.uid == userId;
+      // Un usuario solo puede crear su propio perfil (donde el ID del documento es su UID)
+      allow create: if request.auth != null && request.auth.uid == userId;
+      // Un usuario solo puede actualizar o eliminar su propio perfil
+      allow update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Reglas para la colección de productos
+    // Permite que CUALQUIERA lea los productos.
+    // Permite que SOLO LOS ADMINISTRADORES escriban (crear, actualizar, eliminar) productos.
+    match /artifacts/{appId}/public/data/products/{productId} {
+      allow read: if true; // Lectura pública para la tienda
+      allow write: if request.auth != null && get(/databases/$(database)/documents/artifacts/$(appId)/public/data/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Reglas para la colección de pedidos
+    // Permite a cualquier usuario autenticado CREAR un pedido.
+    // Permite al propietario del pedido o a un ADMINISTRADOR LEER el pedido.
+    // Permite a SOLO LOS ADMINISTRADORES ACTUALIZAR o ELIMINAR pedidos.
+    match /artifacts/{appId}/public/data/orders/{orderId} {
+      allow create: if request.auth != null; // Cualquier user autenticado puede crear un pedido
+      // Permite leer si eres el propietario del pedido o un administrador
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/artifacts/$(appId)/public/data/users/$(request.auth.uid)).data.role == 'admin');
+      // Permite actualizar o eliminar pedidos solo a administradores
+      allow update, delete: if request.auth != null && get(/databases/$(database)/documents/artifacts/$(appId)/public/data/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Reglas para la colección de reseñas
+    // Ahora permite a los administradores actualizar y eliminar reseñas.
+    match /artifacts/{appId}/public/data/reviews/{reviewId} {
+      allow read: if true; // Cualquiera puede leer las reseñas
+      allow create: if request.auth != null; // Solo usuarios autenticados pueden crear reseñas
+
+      // Permite a los ADMINISTRADORES actualizar y eliminar reseñas
+      allow update, delete: if request.auth != null && get(/databases/$(database)/documents/artifacts/$(appId)/public/data/users/$(request.auth.uid)).data.role == 'admin';
+
+      // Opcional: Si quieres que los usuarios puedan editar o borrar sus propias reseñas:
+      // allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      // Si decides agregar la línea de arriba, asegúrate de que el 'userId' en el documento de reseña
+      // coincida con el 'uid' del usuario autenticado que intenta la operación.
+      // Si no usas esta regla opcional, solo los administradores podrán actualizar/eliminar.
+    }
+
+    // Regla de seguridad por defecto: deniega todo lo que no esté explícitamente permitido arriba.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+
