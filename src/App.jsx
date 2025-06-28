@@ -233,24 +233,31 @@ function App() {
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8">
       {/* Helmet para SEO global */}
-      <Helmet>
-        <title>La Abu Matie App - Comida Casera Deliciosa</title>
-        <meta name="description" content="Pide las mejores milanesas, empanadas y pastas caseras en La Abu Matie App. ¡Sabor casero a tu puerta!" />
-        <meta name="keywords" content="comida casera, milanesas, empanadas, pastas, delivery, La Abu Matie, Buenos Aires, comida a domicilio" />
-        <link rel="canonical" href="https://laabumatie.com/" /> {/* Reemplaza con tu URL real */}
+     <Helmet>
+        {/* Título: Más específico, incluyendo ubicación y tipo de negocio */}
+        <title>La Abu Matie - Rotisería y Pizzería en Villa La Florida, Quilmes | Comida Casera Delivery</title>
         
-        {/* Open Graph / Redes Sociales */}
-        <meta property="og:title" content="La Abu Matie App - Comida Casera Deliciosa" />
-        <meta property="og:description" content="Pide las mejores milanesas, empanadas y pastas caseras en La Abu Matie App. ¡Sabor casero a tu puerta!" />
-        <meta property="og:image" content="https://laabumatie.com/LaAbuMatieLogo.jpeg" /> {/* Reemplaza con la URL de tu logo */}
-        <meta property="og:url" content="https://laabumatie.com/" /> {/* Reemplaza con tu URL real */}
+        {/* Descripción: Incluye servicios clave y ubicación */}
+        <meta name="description" content="Pide las mejores milanesas, empanadas, pastas y pizzas caseras en La Abu Matie App. Delivery en Villa La Florida, San Francisco Solano, Quilmes y alrededores. ¡Sabor casero a tu puerta!" />
+        
+        {/* Keywords: Añade variaciones locales y tipos de comida */}
+        <meta name="keywords" content="comida casera, milanesas, empanadas, pastas, pizzas, delivery, La Abu Matie, Villa La Florida, Quilmes, San Francisco Solano, rotisería, pizzería, comida a domicilio, zona sur" />
+        
+        {/* Canonical: Tu URL de hosting real */}
+        <link rel="canonical" href="https://la-abu-matie-app.web.app/" /> 
+        
+        {/* Open Graph / Redes Sociales (ajusta títulos y descripciones para redes) */}
+        <meta property="og:title" content="La Abu Matie - Rotisería y Pizzería en Villa La Florida, Quilmes" />
+        <meta property="og:description" content="Pide las mejores milanesas, empanadas, pastas y pizzas caseras en La Abu Matie App. Delivery en Villa La Florida, San Francisco Solano, Quilmes y alrededores." />
+        <meta property="og:image" content="https://la-abu-matie-app.web.app/LaAbuMatieLogo.jpeg" /> {/* URL absoluta de tu logo */}
+        <meta property="og:url" content="https://la-abu-matie-app.web.app/" /> 
         <meta property="og:type" content="website" />
 
-        {/* Twitter Card */}
+        {/* Twitter Card (ajusta títulos y descripciones para Twitter) */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="La Abu Matie App - Comida Casera Deliciosa" />
-        <meta name="twitter:description" content="Pide las mejores milanesas, empanadas y pastas caseras en La Abu Matie App. ¡Sabor casero a tu puerta!" />
-        <meta name="twitter:image" content="https://laabumatie.com/LaAbuMatieLogo.jpeg" /> {/* Reemplaza con la URL de tu logo */}
+        <meta name="twitter:title" content="La Abu Matie - Rotisería y Pizzería en Villa La Florida, Quilmes" />
+        <meta name="twitter:description" content="Pide las mejores milanesas, empanadas, pastas y pizzas caseras en La Abu Matie App. Delivery en Villa La Florida, San Francisco Solano, Quilmes y alrededores." />
+        <meta name="twitter:image" content="https://la-abu-matie-app.web.app/LaAbuMatieLogo.jpeg" /> {/* URL absoluta de tu logo */}
       </Helmet>
 
       <Routes>
