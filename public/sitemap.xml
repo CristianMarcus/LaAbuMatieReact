@@ -1,0 +1,19 @@
+<!-- public/sitemap.xml -->
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://la-abu-matie-app.web.app/</loc> <!-- Tu URL de hosting -->
+    <lastmod>2025-06-27</lastmod> <!-- Fecha de última modificación -->
+    <changefreq>daily</changefreq> <!-- Cambialo a diario si actualizas productos a menudo -->
+    <priority>1.0</priority>
+  </url>
+  <!-- Si tuvieras páginas de categorías o productos individuales con URLs únicas, las añadirías aquí -->
+  <!-- Ejemplo:
+  <url>
+    <loc>https://la-abu-matie-app.web.app/milanesas</loc>
+    <lastmod>2025-06-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  -->
+</urlset>

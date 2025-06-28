@@ -234,6 +234,7 @@ function App() {
     <div className="min-h-screen p-4 sm:p-6 lg:p-8">
       {/* Helmet para SEO global */}
      <Helmet>
+        <meta name="google-site-verification" content="ioSAJYeZVo6gFB7LYe3EuoTKp1d7nlEZ3XZzcwfx55s" />
         {/* Título: Más específico, incluyendo ubicación y tipo de negocio */}
         <title>La Abu Matie - Rotisería y Pizzería en Villa La Florida, Quilmes | Comida Casera Delivery</title>
         
