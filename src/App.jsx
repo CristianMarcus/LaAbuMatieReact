@@ -9,7 +9,7 @@ import FeaturedProductsSection from './components/FeaturedProductsSection';
 import Footer from './components/Footer';
 import PowaContactForm from './components/PowaContactForm';
 import './App.css';
-import { ShoppingCart, Search, Sun, Moon, ArrowUp, Heart, UserCheck, LogOut, LayoutDashboard, Loader2 } from 'lucide-react'; 
+import { ShoppingCart, Search, Sun, Moon, ArrowUp, Heart, UserCheck, LogOut, LayoutDashboard, Loader2 } from 'lucide-react';
 
 // Importar los nuevos hooks personalizados
 import { useToast } from './hooks/useToast';
@@ -27,7 +27,7 @@ import AdminLogin from './components/AdminLogin';
 import AdminDashboard from './components/AdminDashboard';
 
 import { Routes, Route, useNavigate } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async'; 
+import { Helmet } from 'react-helmet-async';
 
 function App() {
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -44,7 +44,7 @@ function App() {
 
   // Usa las variables de entorno para la configuración de Firebase
   const localFirebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY, 
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
     authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
     projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
     storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
@@ -55,7 +55,7 @@ function App() {
 
   const firebaseConfig = Object.keys(canvasFirebaseConfig).length > 0 ? canvasFirebaseConfig : localFirebaseConfig;
   const initialAuthToken = canvasInitialAuthToken;
-  const actualFirebaseProjectId = localFirebaseConfig.projectId; 
+  const actualFirebaseProjectId = localFirebaseConfig.projectId;
 
 
   // --- Uso de los hooks personalizados ---
@@ -71,9 +71,9 @@ function App() {
     userProfile,
     isAuthReady,
     isLoadingAuth,
-    handleAdminLogin: firebaseAdminLogin, 
-    handleAdminLogout: firebaseAdminLogout, 
-  } = useFirebase(firebaseConfig, initialAuthToken, showNotification, currentPage, actualFirebaseProjectId); 
+    handleAdminLogin: firebaseAdminLogin,
+    handleAdminLogout: firebaseAdminLogout,
+  } = useFirebase(firebaseConfig, initialAuthToken, showNotification, currentPage, actualFirebaseProjectId);
 
   const {
     productos,
@@ -84,23 +84,23 @@ function App() {
     sortedProductosPorCategoria,
     toggleCategoria,
     categoriasAbiertas,
-    allProducts, 
-  } = useProducts(db, actualFirebaseProjectId, isAuthReady, showNotification); 
+    allProducts,
+  } = useProducts(db, actualFirebaseProjectId, isAuthReady, showNotification);
 
   const {
     favoriteProductIds,
     toggleFavorite,
     favoriteProducts,
-  } = useFavorites(db, actualFirebaseProjectId, userId, showNotification, allProducts); 
+  } = useFavorites(db, actualFirebaseProjectId, userId, showNotification, allProducts);
 
   const {
-    manualFeaturedProductIds, 
+    manualFeaturedProductIds,
     featuredProducts,
-  } = useFeaturedProducts(db, actualFirebaseProjectId, productos); 
+  } = useFeaturedProducts(db, actualFirebaseProjectId, productos);
 
   const {
     cartItems,
-    setCartItems, 
+    setCartItems,
     handleAddToCart,
     handleIncreaseQuantity,
     handleDecreaseQuantity,
@@ -122,7 +122,7 @@ function App() {
     handleGoBackToCart,
     handleSendOrder,
     existingOrdersCount,
-  } = useOrderFlow(db, actualFirebaseProjectId, userId, cartItems, handleClearCart, showNotification, navigate, actualFirebaseProjectId); 
+  } = useOrderFlow(db, actualFirebaseProjectId, userId, cartItems, handleClearCart, showNotification, navigate, actualFirebaseProjectId);
 
 
   // --- Lógica de redirección y manejo de estado de administración ---
@@ -139,7 +139,7 @@ function App() {
     if (result.success) {
       setHasShownAdminWelcome(true);
       setCurrentPage('dashboard-admin');
-      navigate('/dashboard-admin'); 
+      navigate('/dashboard-admin');
     } else {
       setCurrentPage('login-admin');
       navigate('/login-admin');
@@ -188,7 +188,7 @@ function App() {
   }, [navigate]);
 
   const handleGoToProducts = useCallback(() => {
-    navigate('/'); 
+    navigate('/');
   }, [navigate]);
 
   const handleGoToBranches = useCallback(() => {
@@ -200,7 +200,7 @@ function App() {
   }, [showNotification]);
 
   // Estado de carga general de la aplicación
-  const isLoadingApp = loadingProducts || isLoadingAuth; 
+  const isLoadingApp = loadingProducts || isLoadingAuth;
 
   if (isLoadingApp) {
     return (
@@ -213,10 +213,10 @@ function App() {
           </h1>
         </div>
         <div className="flex items-center justify-center mt-8">
-          <Loader2 className="animate-spin text-amber-500 dark:text-amber-300" size={64} /> 
+          <Loader2 className="animate-spin text-amber-500 dark:text-amber-300" size={64} />
         </div>
         <p className="text-xl font-semibold text-gray-700 dark:text-gray-300 mt-8 animate-pulse">
-          Cargando los sabores caseros de La Abu Matie... 
+          Cargando los sabores caseros de La Abu Matie...
         </p>
       </div>
     );
@@ -233,38 +233,38 @@ function App() {
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8">
       {/* Helmet para SEO global */}
-     <Helmet>
-       
+      <Helmet>
         {/* Título: Más específico, incluyendo ubicación y tipo de negocio */}
-        <title>La Abu Matie - Rotisería y Pizzería en Villa La Florida, Quilmes | Comida Casera Delivery</title>
+        <title>La Abu Matie - Rotisería, Pizzería y Comida Casera en Villa La Florida, Quilmes | Delivery</title>
         <meta name="google-site-verification" content="ioSAJYeZVo6gFB7LYe3EuoTKp1d7nlEZ3XZzcwfx55s" />
-        {/* Descripción: Incluye servicios clave y ubicación */}
-        <meta name="description" content="Pide las mejores milanesas, empanadas, pastas y pizzas caseras en La Abu Matie App. Delivery en Villa La Florida, San Francisco Solano, Quilmes y alrededores. ¡Sabor casero a tu puerta!" />
-        
-        {/* Keywords: Añade variaciones locales y tipos de comida */}
-        <meta name="keywords" content="comida casera, milanesas, empanadas, pastas, pizzas, delivery, La Abu Matie, Villa La Florida, Quilmes, San Francisco Solano, rotisería, pizzería, comida a domicilio, zona sur" />
-        
-        {/* Canonical: Tu URL de hosting real */}
-        <link rel="canonical" href="https://la-abu-matie-app.web.app/" /> 
-        
+
+        {/* Descripción: Incluye servicios clave, ubicación y palabras clave de cola larga */}
+        <meta name="description" content="Pide las mejores milanesas, empanadas, pastas y pizzas caseras en La Abu Matie App. Ofrecemos delivery rápido y confiable en Villa La Florida, San Francisco Solano, Quilmes Oeste y Bernal Oeste. ¡Tu rotisería y pizzería de confianza con sabor casero a tu puerta!" />
+
+        {/* Keywords: Amplía las variaciones locales y tipos de comida, incluyendo sinónimos y ubicaciones específicas */}
+        <meta name="keywords" content="comida casera, milanesas, empanadas, pastas, pizzas, delivery, La Abu Matie, Villa La Florida, Quilmes, San Francisco Solano, rotisería, pizzería, comida a domicilio, zona sur, Bernal Oeste, Quilmes Oeste, viandas caseras, menú diario, platos elaborados" />
+
+        {/* Canonical: Tu URL de hosting real y principal */}
+        <link rel="canonical" href="https://la-abu-matie-app.web.app/" />
+
         {/* Open Graph / Redes Sociales (ajusta títulos y descripciones para redes) */}
-        <meta property="og:title" content="La Abu Matie - Rotisería y Pizzería en Villa La Florida, Quilmes" />
-        <meta property="og:description" content="Pide las mejores milanesas, empanadas, pastas y pizzas caseras en La Abu Matie App. Delivery en Villa La Florida, San Francisco Solano, Quilmes y alrededores." />
+        <meta property="og:title" content="La Abu Matie - Rotisería, Pizzería y Comida Casera en Villa La Florida, Quilmes" />
+        <meta property="og:description" content="Pide las mejores milanesas, empanadas, pastas y pizzas caseras en La Abu Matie App. Delivery en Villa La Florida, San Francisco Solano, Quilmes y alrededores. ¡Sabor casero a tu puerta!" />
         <meta property="og:image" content="https://la-abu-matie-app.web.app/LaAbuMatieLogo.jpeg" /> {/* URL absoluta de tu logo */}
-        <meta property="og:url" content="https://la-abu-matie-app.web.app/" /> 
+        <meta property="og:url" content="https://la-abu-matie-app.web.app/" />
         <meta property="og:type" content="website" />
 
         {/* Twitter Card (ajusta títulos y descripciones para Twitter) */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="La Abu Matie - Rotisería y Pizzería en Villa La Florida, Quilmes" />
-        <meta name="twitter:description" content="Pide las mejores milanesas, empanadas, pastas y pizzas caseras en La Abu Matie App. Delivery en Villa La Florida, San Francisco Solano, Quilmes y alrededores." />
+        <meta name="twitter:title" content="La Abu Matie - Rotisería, Pizzería y Comida Casera en Villa La Florida, Quilmes" />
+        <meta name="twitter:description" content="Pide las mejores milanesas, empanadas, pastas y pizzas caseras en La Abu Matie App. Delivery en Villa La Florida, San Francisco Solano, Quilmes y alrededores. ¡Sabor casero a tu puerta!" />
         <meta name="twitter:image" content="https://la-abu-matie-app.web.app/LaAbuMatieLogo.jpeg" /> {/* URL absoluta de tu logo */}
       </Helmet>
 
       <Routes>
         <Route path="/" element={
           <>
-            <div className="fixed top-6 left-6 flex space-x-4 sm:space-x-8 z-50"> 
+            <div className="fixed top-6 left-6 flex space-x-4 sm:space-x-8 z-50">
               <button
                 onClick={toggleDarkMode}
                 className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-3 rounded-full shadow-lg transition-colors duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-gray-300 dark:focus:ring-600"
@@ -275,7 +275,7 @@ function App() {
               {userProfile?.role === 'admin' && (
                 <button
                   onClick={() => { setCurrentPage('dashboard-admin'); navigate('/dashboard-admin'); }}
-                  className="bg-green-600 hover:bg-green-700 text-white p-3 rounded-full shadow-lg transition-colors duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-green-300" 
+                  className="bg-green-600 hover:bg-green-700 text-white p-3 rounded-full shadow-lg transition-colors duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-green-300"
                   aria-label="Ir al Panel de Administración"
                 >
                   <LayoutDashboard size={24} />
@@ -294,10 +294,10 @@ function App() {
 
             <button
               onClick={() => setIsCartModalOpen(true)}
-              className="fixed bottom-24 right-6 bg-emerald-600 hover:bg-emerald-700 text-white p-3 rounded-full shadow-lg text-xl font-bold flex items-center gap-2 z-40 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-emerald-300" 
+              className="fixed bottom-24 right-6 bg-emerald-600 hover:bg-emerald-700 text-white p-3 rounded-full shadow-lg text-xl font-bold flex items-center gap-2 z-40 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-emerald-300"
               aria-label="Abrir carrito"
             >
-              <ShoppingCart size={24} /> 
+              <ShoppingCart size={24} />
               <span className="hidden sm:inline">({cartItems.length})</span>
               <span className="sm:hidden">{cartItems.length}</span>
             </button>
@@ -314,10 +314,10 @@ function App() {
 
             <div className="w-full mt-24 sm:mt-28 md:mt-32 mb-12 flex flex-col sm:flex-row justify-center items-center gap-4">
               <img
-                src="/LaAbuMatieLogo.jpeg" 
-                alt="Logo de La Abu Matie App" 
-                className="h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32 lg:h-36 lg:w-36 xl:h-46 xl:w-46 object-cover animate-pizza-jiggle rounded-full border-4 border-orange-500 dark:border-orange-300 shadow-lg" 
-                onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/100x100/A0522D/F0F8FF?text=Logo+La+Abu+Matie"; }} 
+                src="/LaAbuMatieLogo.jpeg"
+                alt="Logo de La Abu Matie App"
+                className="h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32 lg:h-36 lg:w-36 xl:h-46 xl:w-46 object-cover animate-pizza-jiggle rounded-full border-4 border-orange-500 dark:border-orange-300 shadow-lg"
+                onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/100x100/A0522D/F0F8FF?text=Logo+La+Abu+Matie"; }}
               />
               <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl xl:text-9xl font-extrabold drop-shadow-2xl text-center">
                 <span className="inline-flex items-center text-transparent bg-clip-text bg-gradient-to-br from-amber-700 via-orange-600 to-yellow-500 dark:from-amber-500 dark:via-orange-400 dark:to-yellow-300">
@@ -329,12 +329,12 @@ function App() {
             <div className="max-w-xl mx-auto mb-10 relative">
               <input
                 type="text"
-                id="app-search-input" 
-                name="search"    
-                placeholder="Busca tu milanesa, empanada o pasta favorita..." 
+                id="app-search-input"
+                name="search"
+                placeholder="Busca tu milanesa, empanada o pasta favorita..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full p-4 pl-12 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-400 shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all" 
+                className="w-full p-4 pl-12 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-400 shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
               />
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400" size={24} />
             </div>
@@ -355,7 +355,7 @@ function App() {
                 >
                   <button
                     onClick={() => toggleCategoria('Favoritos')}
-                    className="w-full flex justify-between items-center px-6 sm:px-8 py-5 text-left text-3xl font-bold bg-gradient-to-r from-emerald-500 to-emerald-600 dark:from-emerald-700 dark:to-emerald-800 hover:from-emerald-600 hover:to-emerald-700 dark:hover:from-emerald-800 dark:hover:to-emerald-900 transition-all duration-300 rounded-t-3xl text-white shadow-md focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-900" 
+                    className="w-full flex justify-between items-center px-6 sm:px-8 py-5 text-left text-3xl font-bold bg-gradient-to-r from-emerald-500 to-emerald-600 dark:from-emerald-700 dark:to-emerald-800 hover:from-emerald-600 hover:to-emerald-700 dark:hover:from-emerald-800 dark:hover:to-emerald-900 transition-all duration-300 rounded-t-3xl text-white shadow-md focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-900"
                     aria-expanded={categoriasAbiertas['Favoritos']}
                   >
                     <span className="capitalize flex items-center gap-2">
@@ -393,8 +393,8 @@ function App() {
                   >
                     <button
                       onClick={() => toggleCategoria(categoria)}
-                      className="w-full flex justify-between items-center px-6 sm:px-8 py-5 text-left text-3xl font-bold bg-gradient-to-r from-amber-500 to-amber-600 dark:from-amber-700 dark:to-amber-800 hover:from-amber-600 hover:to-amber-700 dark:hover:from-amber-800 dark:hover:to-amber-900 transition-all duration-300 rounded-t-3xl text-white shadow-md focus:outline-none focus:ring-4 focus:ring-amber-300 dark:focus:ring-900" 
-                    aria-expanded={categoriasAbiertas[categoria]}
+                      className="w-full flex justify-between items-center px-6 sm:px-8 py-5 text-left text-3xl font-bold bg-gradient-to-r from-amber-500 to-amber-600 dark:from-amber-700 dark:to-amber-800 hover:from-amber-600 hover:to-amber-700 dark:hover:from-amber-800 dark:hover:to-amber-900 transition-all duration-300 rounded-t-3xl text-white shadow-md focus:outline-none focus:ring-4 focus:ring-amber-300 dark:focus:ring-900"
+                      aria-expanded={categoriasAbiertas[categoria]}
                     >
                       <span className="capitalize flex items-center gap-2">
                         {categoria}
@@ -424,7 +424,7 @@ function App() {
                 ) : null
               ))}
             </div>
-            
+
             {isCartModalOpen && (
               <ShoppingCartModal
                 cartItems={cartItems}
@@ -433,38 +433,38 @@ function App() {
                 onDecreaseQuantity={handleDecreaseQuantity}
                 onRemoveItem={handleRemoveItem}
                 onClearCart={handleClearCart}
-                onViewSummary={handleViewSummaryFromCart} 
-                showNotification={showNotification} 
+                onViewSummary={handleViewSummaryFromCart}
+                showNotification={showNotification}
               />
             )}
 
-            {isOrderSummaryModalOpen && currentOrder && ( 
+            {isOrderSummaryModalOpen && currentOrder && (
               <OrderSummaryModal
-                order={currentOrder} 
+                order={currentOrder}
                 onClose={() => {
                   setIsOrderSummaryModalOpen(false);
-                  setCurrentOrder(null); 
+                  setCurrentOrder(null);
                 }}
-                onBack={handleGoBackToCart} 
-                onContinue={currentOrder?.customerInfo ? () => { 
+                onBack={handleGoBackToCart}
+                onContinue={currentOrder?.customerInfo ? () => {
                   setIsOrderSummaryModalOpen(false);
-                  setCurrentOrder(null); 
-                  navigate('/'); 
-                } : handleContinueToForm} 
-                showNotification={showNotification} 
+                  setCurrentOrder(null);
+                  navigate('/');
+                } : handleContinueToForm}
+                showNotification={showNotification}
               />
             )}
 
             {isOrderFormModalOpen && (
               <OrderFormModal
-                cartItems={cartItems} 
+                cartItems={cartItems}
                 onClose={() => setIsOrderFormModalOpen(false)}
-                onBack={handleGoBackToCart} 
+                onBack={handleGoBackToCart}
                 onSendOrder={(data) => {
                   handleSendOrder(data);
                 }}
-                showNotification={showNotification} 
-                existingOrdersCount={existingOrdersCount} 
+                showNotification={showNotification}
+                existingOrdersCount={existingOrdersCount}
               />
             )}
 
@@ -474,7 +474,7 @@ function App() {
                 onClose={handleCloseProductDetails}
                 onAddToCart={handleAddToCart}
                 db={db}
-                appId={actualFirebaseProjectId} 
+                appId={actualFirebaseProjectId}
                 userId={userId}
                 showNotification={showNotification}
                 userProfile={userProfile}
@@ -492,44 +492,45 @@ function App() {
               onOpenPowaContactForm={handleOpenPowaContactForm}
               onOpenAdminLogin={handleOpenAdminLoginFromFooter}
               userProfile={userProfile}
-              onGoToHome={handleGoToHome}         
-              onGoToProducts={handleGoToProducts} 
-              onGoToBranches={handleGoToBranches} 
-              onGoToFAQ={handleGoToFAQ}           
+              onGoToHome={handleGoToHome}
+              onGoToProducts={handleGoToProducts}
+              onGoToBranches={handleGoToBranches}
+              onGoToFAQ={handleGoToFAQ}
             />
           </>
-        } />
-
-        <Route 
-          path="/login-admin" 
-          element={<AdminLogin onLogin={handleAdminLogin} onClose={() => navigate('/')} />} 
+        } 
         />
 
-        <Route 
-          path="/dashboard-admin" 
+        <Route
+          path="/login-admin"
+          element={<AdminLogin onLogin={handleAdminLogin} onClose={() => navigate('/')} />}
+        />
+
+        <Route
+          path="/dashboard-admin"
           element={
             userProfile?.role === 'admin' ? (
               <AdminDashboard
                 db={db}
-                appId={actualFirebaseProjectId} 
+                appId={actualFirebaseProjectId}
                 onLogout={handleAdminLogout}
                 showNotification={showNotification}
-                onGoToHome={() => navigate('/')} 
+                onGoToHome={() => navigate('/')}
                 hasShownAdminWelcome={hasShownAdminWelcome}
                 setHasShownAdminWelcome={setHasShownAdminWelcome}
               />
             ) : (
-              <AdminLogin 
-                onLogin={handleAdminLogin} 
-                onClose={() => { showNotification('Acceso denegado: No eres administrador.', 'error'); navigate('/'); }} 
+              <AdminLogin
+                onLogin={handleAdminLogin}
+                onClose={() => { showNotification('Acceso denegado: No eres administrador.', 'error'); navigate('/'); }}
               />
             )
-          } 
+          }
         />
 
-        <Route 
-          path="/contact" 
-          element={<PowaContactForm onClose={() => navigate('/')} showNotification={showNotification} />} 
+        <Route
+          path="/contact"
+          element={<PowaContactForm onClose={() => navigate('/')} showNotification={showNotification} />}
         />
 
         <Route path="*" element={<h2 className="text-3xl font-bold text-center mt-10">404 - Página No Encontrada</h2>} />
