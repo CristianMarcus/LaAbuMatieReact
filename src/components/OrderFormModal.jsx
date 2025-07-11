@@ -1,32 +1,49 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { XCircle, ArrowLeft, Send, Loader2, Home, Truck } from 'lucide-react'; // Importamos iconos
+import { XCircle, ArrowLeft, Send, Loader2, Home, Truck, Clock, Calendar, MessageSquare } from 'lucide-react'; // Importamos MessageSquare para notas
 
 function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotification }) {
   const [formData, setFormData] = useState({
     name: '',
-    address: '', // Campo de dirección
     phone: '',
-    paymentMethod: 'cash', // Default a efectivo
-    cashAmount: '', 
-    deliveryMethod: 'pickup', // NUEVO: 'pickup' (Retiro en local) o 'delivery' (Delivery a domicilio)
+    address: '',
+    paymentMethod: 'cash',
+    cashAmount: '',
+    deliveryMethod: 'pickup', // 'pickup' (Retiro en local) o 'delivery' (Delivery a domicilio)
+    orderType: 'immediate', // NUEVO: 'immediate' o 'reserved'
+    orderTime: '', // NUEVO: Para la hora de reserva o estimada si es inmediato
+    notes: '', // Campo para notas/comentarios
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mercadopagoConfirmed, setMercadopagoConfirmed] = useState(false);
 
   const isCashAmountInsufficient = useRef(false);
-  const firstInputRef = useRef(null); 
+  const firstInputRef = useRef(null);
 
+  // Focus en el primer input al abrir el modal
   useEffect(() => {
     if (firstInputRef.current) {
       firstInputRef.current.focus();
     }
   }, []);
 
+  // Calcula el total del carrito
   const total = useMemo(() => {
     return Math.floor(cartItems.reduce((sum, item) => sum + item.precio * item.quantity, 0));
   }, [cartItems]);
 
+  // NUEVO: Calcula el vuelto para mostrar en el formulario
+  const changeAmountForDisplay = useMemo(() => {
+    if (formData.paymentMethod === 'cash' && formData.cashAmount) {
+      const amount = parseFloat(formData.cashAmount);
+      if (!isNaN(amount) && amount >= total) {
+        return Math.floor(amount - total);
+      }
+    }
+    return null; // No mostrar vuelto si no es efectivo, o el monto es insuficiente/inválido
+  }, [formData.paymentMethod, formData.cashAmount, total]);
+
+  // Función de validación de campos
   const validateField = useCallback((name, value) => {
     let error = '';
     switch (name) {
@@ -34,9 +51,8 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
         if (!value.trim()) error = 'El nombre es requerido.';
         break;
       case 'address':
-        // La dirección solo es requerida si el método de envío es 'delivery'
         if (formData.deliveryMethod === 'delivery' && !value.trim()) {
-            error = 'La dirección es requerida para el delivery.';
+          error = 'La dirección es requerida para el delivery.';
         }
         break;
       case 'phone':
@@ -44,7 +60,7 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
           error = 'El teléfono es requerido.';
         } else if (!/^\d+$/.test(value)) {
           error = 'El teléfono solo debe contener números.';
-        } else if (value.length < 8) { 
+        } else if (value.length < 8) {
           error = 'El teléfono debe tener al menos 8 dígitos.';
         }
         break;
@@ -56,12 +72,30 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
           }
         }
         break;
+      case 'orderTime':
+        // Validar orderTime solo si orderType es 'reserved'
+        if (formData.orderType === 'reserved') {
+          if (!value.trim()) {
+            error = 'La fecha y hora de reserva son requeridas.';
+          } else {
+            const selectedDateTime = new Date(value);
+            const now = new Date();
+            // Asegurarse de que la reserva sea en el futuro
+            if (selectedDateTime <= now) {
+              error = 'La fecha y hora de reserva deben ser en el futuro.';
+            }
+          }
+        }
+        break;
+      case 'notes': // Notas son opcionales, no requiere validación estricta
+        break;
       default:
         break;
     }
     return error;
-  }, [formData.paymentMethod, formData.deliveryMethod, total]); // Añadido formData.deliveryMethod
+  }, [formData.paymentMethod, formData.deliveryMethod, formData.orderType, total]);
 
+  // Manejador genérico para cambios en los inputs
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -70,39 +104,59 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
     setErrors((prev) => ({ ...prev, [name]: error }));
   }, [validateField]);
 
+  // Manejador para el cambio del método de pago
   const handlePaymentMethodChange = useCallback((e) => {
     setFormData((prev) => ({
       ...prev,
       paymentMethod: e.target.value,
-      cashAmount: e.target.value === 'cash' ? prev.cashAmount : '', 
+      cashAmount: e.target.value === 'cash' ? prev.cashAmount : '',
     }));
-    setErrors((prev) => ({ ...prev, cashAmount: '' })); 
+    setErrors((prev) => ({ ...prev, cashAmount: '' }));
     if (e.target.value !== 'mercadopago') {
       setMercadopagoConfirmed(false);
     }
   }, []);
 
-  // NUEVO: Manejador para el cambio del método de envío
+  // Manejador para el cambio del método de envío
   const handleDeliveryMethodChange = useCallback((e) => {
     const newMethod = e.target.value;
     setFormData((prev) => ({
       ...prev,
       deliveryMethod: newMethod,
-      // Si cambia a pickup, limpiar la dirección y su error
-      address: newMethod === 'pickup' ? '' : prev.address, 
+      address: newMethod === 'pickup' ? '' : prev.address,
     }));
-    // Si cambia a pickup, limpiar el error de dirección
     if (newMethod === 'pickup') {
       setErrors((prev) => {
         const newErrors = { ...prev };
         delete newErrors.address;
         return newErrors;
       });
-    } else { // Si cambia a delivery, forzar validación de dirección
-        setErrors((prev) => ({ ...prev, address: validateField('address', formData.address) }));
+    } else {
+      setErrors((prev) => ({ ...prev, address: validateField('address', formData.address) }));
     }
-  }, [formData.address, validateField]); // Agregamos formData.address a las dependencias
+  }, [formData.address, validateField]);
 
+  // NUEVO: Manejador para el cambio del tipo de pedido (inmediato/reservado)
+  const handleOrderTypeChange = useCallback((e) => {
+    const newOrderType = e.target.value;
+    setFormData((prev) => ({
+      ...prev,
+      orderType: newOrderType,
+      orderTime: newOrderType === 'immediate' ? '' : prev.orderTime, // Limpiar orderTime si es inmediato
+    }));
+    // Si cambia a inmediato, limpiar el error de orderTime
+    if (newOrderType === 'immediate') {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.orderTime;
+        return newErrors;
+      });
+    } else { // Si cambia a reservado, forzar validación de orderTime
+      setErrors((prev) => ({ ...prev, orderTime: validateField('orderTime', formData.orderTime) }));
+    }
+  }, [formData.orderTime, validateField]);
+
+  // Manejador para la confirmación de Mercado Pago
   const handleMercadopagoConfirmChange = useCallback((e) => {
     setMercadopagoConfirmed(e.target.checked);
     if (e.target.checked) {
@@ -114,44 +168,42 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
     }
   }, []);
 
+  // Efecto para validar el monto en efectivo
   useEffect(() => {
     if (formData.paymentMethod === 'cash') {
       const amount = parseFloat(formData.cashAmount);
       isCashAmountInsufficient.current = isNaN(amount) || amount < total;
-      
+
       setErrors(prevErrors => {
         const newErrors = { ...prevErrors };
         if (isCashAmountInsufficient.current && !isNaN(amount) && amount > 0) {
           newErrors.cashAmount = `El monto debe ser igual o mayor al total del pedido ($${total}).`;
         } else if (!isNaN(amount) && amount > 0 && !isCashAmountInsufficient.current) {
-          delete newErrors.cashAmount; 
+          delete newErrors.cashAmount;
         } else if (isNaN(amount) || amount <= 0) {
-            newErrors.cashAmount = 'El monto no es válido o debe ser mayor a cero.';
+          newErrors.cashAmount = 'El monto no es válido o debe ser mayor a cero.';
         }
         return newErrors;
       });
     } else {
       isCashAmountInsufficient.current = false;
-      setErrors(prevErrors => { 
+      setErrors(prevErrors => {
         const newErrors = { ...prevErrors };
         delete newErrors.cashAmount;
         return newErrors;
-      }); 
+      });
     }
-  }, [formData.paymentMethod, formData.cashAmount, total, showNotification]); 
+  }, [formData.paymentMethod, formData.cashAmount, total]);
 
   // useMemo para determinar si todo el formulario es válido
   const isFormValid = useMemo(() => {
-    // Campos siempre requeridos
     const areCoreFieldsFilled = formData.name.trim() !== '' &&
                                 formData.phone.trim() !== '';
-    
-    // Validación de dirección basada en el método de envío
-    const isAddressValid = formData.deliveryMethod === 'delivery' 
-                         ? formData.address.trim() !== '' && !errors.address 
-                         : true; // No se requiere dirección para 'pickup'
 
-    // Validaciones específicas del método de pago
+    const isAddressValid = formData.deliveryMethod === 'delivery'
+                               ? formData.address.trim() !== '' && !errors.address
+                               : true;
+
     let paymentMethodValid = true;
     if (formData.paymentMethod === 'cash') {
       paymentMethodValid = !isCashAmountInsufficient.current && !errors.cashAmount;
@@ -159,37 +211,33 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
       paymentMethodValid = mercadopagoConfirmed;
     }
 
-    // Comprobamos que no haya ningún error general en el objeto 'errors' (excluyendo los errores específicos que ya se manejan)
-    const hasAnyInputErrors = Object.keys(errors).some(key => 
-        key !== 'cashAmount' && key !== 'mercadopagoConfirmation' && key !== 'address' && errors[key] !== ''
+    // NUEVO: Validación del tipo de pedido y hora
+    let orderTimeValid = true;
+    if (formData.orderType === 'reserved') {
+      orderTimeValid = formData.orderTime.trim() !== '' && !errors.orderTime;
+    }
+
+    // Asegurarse de que no haya errores en ningún campo validado
+    const hasAnyInputErrors = Object.keys(errors).some(key =>
+      key !== 'cashAmount' && key !== 'mercadopagoConfirmation' && errors[key] !== ''
     );
-    
-    // console.log("OrderFormModal: isFormValid calculado. Detalles:", {
-    //   areCoreFieldsFilled,
-    //   isAddressValid,
-    //   paymentMethodValid,
-    //   hasAnyInputErrors,
-    //   isCashAmountInsufficient: isCashAmountInsufficient.current,
-    //   mercadopagoConfirmed,
-    //   errors: JSON.stringify(errors)
-    // });
 
-    return areCoreFieldsFilled && isAddressValid && paymentMethodValid && !hasAnyInputErrors;
-  }, [formData, isCashAmountInsufficient.current, mercadopagoConfirmed, errors]); 
+    return areCoreFieldsFilled && isAddressValid && paymentMethodValid && orderTimeValid && !hasAnyInputErrors;
+  }, [formData, isCashAmountInsufficient.current, mercadopagoConfirmed, errors]);
 
+  // Manejador de envío del formulario
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Re-validar todos los campos para asegurar que se muestren los errores
     const newErrorsOnSubmit = {};
     Object.keys(formData).forEach((name) => {
-      if (name === 'cashAmount' && formData.paymentMethod !== 'cash') {
-        return;
-      }
-      if (name === 'address' && formData.deliveryMethod === 'pickup') { // No validar dirección si es retiro en local
-        return;
-      }
+      // Excluir campos condicionales si no aplican
+      if (name === 'cashAmount' && formData.paymentMethod !== 'cash') return;
+      if (name === 'address' && formData.deliveryMethod === 'pickup') return;
+      if (name === 'orderTime' && formData.orderType !== 'reserved') return;
+      if (name === 'notes') return; // Las notas son opcionales, no se validan aquí
+
       const error = validateField(name, formData[name]);
       if (error) {
         newErrorsOnSubmit[name] = error;
@@ -203,18 +251,28 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
       } else if (amount < total) {
         newErrorsOnSubmit.cashAmount = `El monto debe ser igual o mayor al total del pedido ($${total}).`;
       }
-    } 
-    else if (formData.paymentMethod === 'mercadopago' && !mercadopagoConfirmed) {
+    } else if (formData.paymentMethod === 'mercadopago' && !mercadopagoConfirmed) {
       newErrorsOnSubmit.mercadopagoConfirmation = 'Debes confirmar que enviarás el comprobante.';
     }
 
-    setErrors(newErrorsOnSubmit); 
+    // NUEVO: Validación para orderTime en el envío final
+    if (formData.orderType === 'reserved') {
+      const orderTimeError = validateField('orderTime', formData.orderTime);
+      if (orderTimeError) {
+        newErrorsOnSubmit.orderTime = orderTimeError;
+      }
+    }
+
+    setErrors(newErrorsOnSubmit);
 
     const finalFormIsValid = Object.keys(newErrorsOnSubmit).length === 0;
 
-    if (finalFormIsValid) { 
+    if (finalFormIsValid) {
       try {
-        await onSendOrder(formData);
+        // Si el pedido es inmediato, establece orderTime a la hora actual
+        const finalOrderTime = formData.orderType === 'immediate' ? new Date().toISOString() : formData.orderTime;
+        
+        await onSendOrder({ ...formData, orderTime: finalOrderTime });
       } catch (submitError) {
         console.error("Error al enviar el pedido:", submitError);
         showNotification("Hubo un error al enviar tu pedido. Intenta de nuevo.", "error");
@@ -254,7 +312,7 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
               name="name"
               value={formData.name}
               onChange={handleChange}
-              ref={firstInputRef} 
+              ref={firstInputRef}
               className={`w-full p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
               placeholder="Ej: Juan Pérez"
               aria-invalid={!!errors.name}
@@ -267,8 +325,8 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
           <div>
             <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Teléfono</label>
             <input
-              type="tel" 
-              inputMode="numeric" 
+              type="tel"
+              inputMode="numeric"
               id="phone"
               name="phone"
               value={formData.phone}
@@ -281,7 +339,28 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
             {errors.phone && <p id="phone-error" className="mt-1 text-sm text-red-600">{errors.phone}</p>}
           </div>
 
-          {/* NUEVO: Método de Envío */}
+          {/* NUEVA SECCIÓN: Notas/Comentarios */}
+          <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg shadow-inner border border-gray-200 dark:border-gray-600">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+              <MessageSquare size={20} className="text-blue-500" /> Notas Adicionales (Opcional)
+            </h3>
+            {/* Campo Notas/Comentarios */}
+            <div>
+              <label htmlFor="notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 sr-only">Notas / Comentarios (opcional)</label> {/* sr-only para ocultar visualmente pero mantener para lectores de pantalla */}
+              <textarea
+                id="notes"
+                name="notes"
+                rows="3"
+                value={formData.notes}
+                onChange={handleChange}
+                className="w-full p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 border-gray-300"
+                placeholder="Ej: Tocar timbre 3 veces, dejar en la puerta del vecino, etc."
+              ></textarea>
+            </div>
+          </div>
+          {/* FIN NUEVA SECCIÓN */}
+
+          {/* Método de Envío */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Método de Envío</label>
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
@@ -296,7 +375,7 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
                   aria-label="Retirar en el local"
                 />
                 <span className="ml-2 text-gray-900 dark:text-gray-100 font-medium flex items-center">
-                  <Home size={20} className="mr-1 text-emerald-600"/> Retiro en el local (Calle 881 N° 5003, Villa la Florida)
+                  <Home size={20} className="mr-1 text-emerald-600"/> Retiro en el local
                 </span>
               </label>
               <label className="inline-flex items-center cursor-pointer bg-gray-100 dark:bg-gray-700 p-3 rounded-lg shadow-sm flex-1">
@@ -310,7 +389,7 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
                   aria-label="Delivery a domicilio sin cargo"
                 />
                 <span className="ml-2 text-gray-900 dark:text-gray-100 font-medium flex items-center">
-                  <Truck size={20} className="mr-1 text-red-600"/> Delivery a domicilio (sin cargo)
+                  <Truck size={20} className="mr-1 text-red-600"/> Delivery a domicilio
                 </span>
               </label>
             </div>
@@ -330,9 +409,63 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
                 placeholder="Ej: Calle Falsa 123, Depto 4A"
                 aria-invalid={!!errors.address}
                 aria-describedby={errors.address ? 'address-error' : undefined}
-                required // La dirección es requerida solo para delivery
+                required
               />
               {errors.address && <p id="address-error" className="mt-1 text-sm text-red-600">{errors.address}</p>}
+            </div>
+          )}
+
+          {/* NUEVO: Tipo de Pedido (Inmediato / Reserva) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">¿Cuándo quieres tu pedido?</label>
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+              <label className="inline-flex items-center cursor-pointer bg-gray-100 dark:bg-gray-700 p-3 rounded-lg shadow-sm flex-1">
+                <input
+                  type="radio"
+                  name="orderType"
+                  value="immediate"
+                  checked={formData.orderType === 'immediate'}
+                  onChange={handleOrderTypeChange}
+                  className="form-radio text-blue-600 h-5 w-5"
+                  aria-label="Pedido Inmediato"
+                />
+                <span className="ml-2 text-gray-900 dark:text-gray-100 font-medium flex items-center">
+                  <Clock size={20} className="mr-1 text-blue-600"/> Inmediato
+                </span>
+              </label>
+              <label className="inline-flex items-center cursor-pointer bg-gray-100 dark:bg-gray-700 p-3 rounded-lg shadow-sm flex-1">
+                <input
+                  type="radio"
+                  name="orderType"
+                  value="reserved"
+                  checked={formData.orderType === 'reserved'}
+                  onChange={handleOrderTypeChange}
+                  className="form-radio text-purple-600 h-5 w-5"
+                  aria-label="Pedido con Reserva"
+                />
+                <span className="ml-2 text-gray-900 dark:text-gray-100 font-medium flex items-center">
+                  <Calendar size={20} className="mr-1 text-purple-600"/> Reservar para otro momento
+                </span>
+              </label>
+            </div>
+          </div>
+
+          {/* NUEVO: Campo Fecha y Hora de Reserva (Condicional: solo si es reserva) */}
+          {formData.orderType === 'reserved' && (
+            <div>
+              <label htmlFor="orderTime" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Fecha y Hora de Reserva</label>
+              <input
+                type="datetime-local"
+                id="orderTime"
+                name="orderTime"
+                value={formData.orderTime}
+                onChange={handleChange}
+                className={`w-full p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 ${errors.orderTime ? 'border-red-500' : 'border-gray-300'}`}
+                aria-invalid={!!errors.orderTime}
+                aria-describedby={errors.orderTime ? 'orderTime-error' : undefined}
+                required
+              />
+              {errors.orderTime && <p id="orderTime-error" className="mt-1 text-sm text-red-600">{errors.orderTime}</p>}
             </div>
           )}
 
@@ -383,13 +516,18 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
                 name="cashAmount"
                 value={formData.cashAmount}
                 onChange={handleChange}
-                step="1" 
+                step="1"
                 className={`w-full p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 ${errors.cashAmount ? 'border-red-500' : 'border-gray-300'}`}
                 placeholder={`Ej: ${total + 500}`}
                 aria-invalid={!!errors.cashAmount}
                 aria-describedby={errors.cashAmount ? 'cashAmount-error' : undefined}
               />
               {errors.cashAmount && <p id="cashAmount-error" className="mt-1 text-sm text-red-600">{errors.cashAmount}</p>}
+              {changeAmountForDisplay !== null && ( // <<<<<<<<<<<<<<< AÑADIDO: Mostrar vuelto
+                <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
+                  Vuelto: <span className="font-bold text-green-600 dark:text-green-400">$ {changeAmountForDisplay}</span>
+                </p>
+              )}
             </div>
           )}
 
@@ -405,7 +543,7 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
               <p className="font-bold text-red-700 dark:text-red-300 mb-3">
                 ⚠️ Recuerda: Es OBLIGATORIO enviar el COMPROBANTE de pago una vez realizado el pedido. Sin el comprobante, el pedido NO se tomará como válido.
               </p>
-              
+
               <label className="inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
@@ -427,7 +565,7 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
           <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4 pt-4">
             <button
               type="button"
-              onClick={onBack} 
+              onClick={onBack}
               className="w-full sm:w-auto px-6 py-3 bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100 font-bold rounded-xl shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="Volver al paso anterior"
               disabled={isSubmitting}

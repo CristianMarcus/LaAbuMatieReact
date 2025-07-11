@@ -38,42 +38,55 @@ export const useCart = (showNotification) => {
   }, [cartItems]);
 
   // Añadir producto al carrito
+  // productToAdd ahora puede incluir un campo selectedSauce
   const handleAddToCart = useCallback((productToAdd, quantityToAdd = 1) => {
     setCartItems((prevItems) => {
-      const existingItem = prevItems.find((item) => item.id === productToAdd.id);
+      // Genera un ID único para el ítem del carrito basado en el producto y la salsa
+      const itemKey = productToAdd.id + (productToAdd.selectedSauce ? `-${productToAdd.selectedSauce.id}` : '');
+
+      const existingItem = prevItems.find((item) => {
+        const existingItemKey = item.id + (item.selectedSauce ? `-${item.selectedSauce.id}` : '');
+        return existingItemKey === itemKey;
+      });
+
       if (existingItem) {
         const newQuantity = existingItem.quantity + quantityToAdd;
         if (newQuantity <= productToAdd.stock) {
-          showNotification(`${productToAdd.name} +${quantityToAdd} unidad(es)`, 'info', 1500);
+          showNotification(`${productToAdd.name} ${productToAdd.selectedSauce ? `con ${productToAdd.selectedSauce.name}` : ''} +${quantityToAdd} unidad(es)`, 'info', 1500);
           return prevItems.map((item) =>
-            item.id === productToAdd.id ? { ...item, quantity: newQuantity } : item
+            (item.id + (item.selectedSauce ? `-${item.selectedSauce.id}` : '')) === itemKey
+              ? { ...item, quantity: newQuantity }
+              : item
           );
         } else {
-          showNotification(`No se puede añadir más de "${productToAdd.name}". Stock disponible: ${productToAdd.stock - existingItem.quantity}`, 'warning', 3000);
+          showNotification(`No se puede añadir más de "${productToAdd.name} ${productToAdd.selectedSauce ? `con ${productToAdd.selectedSauce.name}` : ''}". Stock disponible: ${productToAdd.stock - existingItem.quantity}`, 'warning', 3000);
           return prevItems;
         }
       } else {
         if (quantityToAdd <= productToAdd.stock) {
-          showNotification(`"${productToAdd.name}" añadido al carrito`, 'success', 2000);
+          showNotification(`"${productToAdd.name} ${productToAdd.selectedSauce ? `con ${productToAdd.selectedSauce.name}` : ''}" añadido al carrito`, 'success', 2000);
           return [...prevItems, { ...productToAdd, quantity: quantityToAdd }];
         } else {
-          showNotification(`No se puede añadir "${productToAdd.name}". Stock disponible: ${productToAdd.stock}`, 'warning', 3000);
+          showNotification(`No se puede añadir "${productToAdd.name} ${productToAdd.selectedSauce ? `con ${productToAdd.selectedSauce.name}` : ''}". Stock disponible: ${productToAdd.stock}`, 'warning', 3000);
           return prevItems;
         }
       }
     });
   }, [showNotification]);
 
-  // Aumentar cantidad de un ítem en el carrito
-  const handleIncreaseQuantity = useCallback((productId) => {
+  // Aumentar cantidad de un ítem en el carrito (ahora con sauceId)
+  const handleIncreaseQuantity = useCallback((productId, sauceId = null) => {
     setCartItems((prevItems) =>
       prevItems.map((item) => {
-        if (item.id === productId) {
+        const itemKey = item.id + (item.selectedSauce ? `-${item.selectedSauce.id}` : '');
+        const targetKey = productId + (sauceId ? `-${sauceId}` : '');
+
+        if (itemKey === targetKey) {
           const newQuantity = item.quantity + 1;
           if (newQuantity <= item.stock) {
             return { ...item, quantity: newQuantity };
           } else {
-            showNotification(`No hay más stock de "${item.name}" disponible.`, 'warning', 2000);
+            showNotification(`No hay más stock de "${item.name} ${item.selectedSauce ? `con ${item.selectedSauce.name}` : ''}" disponible.`, 'warning', 2000);
             return item;
           }
         }
@@ -82,21 +95,31 @@ export const useCart = (showNotification) => {
     );
   }, [showNotification]);
 
-  // Disminuir cantidad de un ítem en el carrito
-  const handleDecreaseQuantity = useCallback((productId) => {
+  // Disminuir cantidad de un ítem en el carrito (ahora con sauceId)
+  const handleDecreaseQuantity = useCallback((productId, sauceId = null) => {
     setCartItems((prevItems) =>
-      prevItems.map((item) =>
-        item.id === productId
-          ? { ...item, quantity: item.quantity > 1 ? item.quantity - 1 : 1 }
-          : item
-      ).filter(item => item.quantity > 0) // Elimina el ítem si la cantidad llega a 0
+      prevItems.map((item) => {
+        const itemKey = item.id + (item.selectedSauce ? `-${item.selectedSauce.id}` : '');
+        const targetKey = productId + (sauceId ? `-${sauceId}` : '');
+
+        if (itemKey === targetKey) {
+          return { ...item, quantity: item.quantity > 1 ? item.quantity - 1 : 0 }; // Set to 0 to be filtered out
+        }
+        return item;
+      }).filter(item => item.quantity > 0) // Elimina el ítem si la cantidad llega a 0
     );
   }, [showNotification]);
 
-  // Eliminar un ítem del carrito
-  const handleRemoveItem = useCallback((productId) => {
-    setCartItems((prevItems) => prevItems.filter((item) => item.id !== productId));
-    showNotification('Producto eliminado del carrito', 'error', 2000);
+  // Eliminar un ítem del carrito (ahora con sauceId)
+  const handleRemoveItem = useCallback((productId, sauceId = null) => {
+    setCartItems((prevItems) => {
+      const targetKey = productId + (sauceId ? `-${sauceId}` : '');
+      const removedItem = prevItems.find(item => (item.id + (item.selectedSauce ? `-${item.selectedSauce.id}` : '')) === targetKey);
+      if (removedItem) {
+        showNotification(`"${removedItem.name} ${removedItem.selectedSauce ? `con ${removedItem.selectedSauce.name}` : ''}" eliminado del carrito`, 'error', 2000);
+      }
+      return prevItems.filter((item) => (item.id + (item.selectedSauce ? `-${item.selectedSauce.id}` : '')) !== targetKey);
+    });
   }, [showNotification]);
 
   // Vaciar completamente el carrito

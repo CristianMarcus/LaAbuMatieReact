@@ -270,3 +270,14 @@ input[type="number"] {
 .animate-pizza-jiggle {
   animation: pizza-jiggle 2s infinite ease-in-out; /* Animación de 2 segundos, infinita, con easing */
 }
+
+/* Animación de "jiggle" para el carrito (NUEVA) */
+@keyframes jiggle {
+  0%, 100% { transform: rotate(0deg); }
+  20%, 60% { transform: rotate(-8deg); }
+  40%, 80% { transform: rotate(8deg); }
+}
+
+.animate-jiggle {
+  animation: jiggle 0.4s ease-in-out infinite; /* Una animación rápida */
+}

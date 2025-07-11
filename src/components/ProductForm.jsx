@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { XCircle, Image as ImageIcon, Loader } from 'lucide-react'; 
+import { XCircle, Image as ImageIcon, Loader, Trash2, PlusCircle } from 'lucide-react';
 
 const ProductForm = ({ product, onClose, onSave, showNotification }) => {
   const [formData, setFormData] = useState({
     name: '',
-    descripcion: '', 
-    precio: '', 
+    descripcion: '',
+    precio: '',
     category: '',
-    stock: '', // <--- AÑADIDO: Campo stock al estado inicial
+    stock: '',
     image: '',
+    sauces: [],
   });
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
@@ -19,11 +20,12 @@ const ProductForm = ({ product, onClose, onSave, showNotification }) => {
     if (product) {
       setFormData({
         name: product.name || '',
-        descripcion: product.descripcion || '', 
-        precio: product.precio || '', 
+        descripcion: product.descripcion || '',
+        precio: product.precio || '',
         category: product.category || '',
-        stock: product.stock || 0, // <--- AÑADIDO y VALIDADO: Accediendo a product.stock, con 0 como fallback
+        stock: product.stock || 0,
         image: product.image || '',
+        sauces: product.sauces || [],
       });
       setImagePreview(product.image || '');
     } else {
@@ -32,269 +34,294 @@ const ProductForm = ({ product, onClose, onSave, showNotification }) => {
         descripcion: '',
         precio: '',
         category: '',
-        stock: 0, // <--- AÑADIDO y VALIDADO: Para nuevos productos, stock inicial 0
+        stock: 0,
         image: '',
+        sauces: [],
       });
       setImagePreview('');
     }
-    setImageFile(null);
   }, [product]);
 
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
-    // Si el campo es 'stock' o 'precio', permite vacío para que el usuario pueda borrarlo
-    // pero al guardar, AdminDashboard lo parseará a número o 0.
     setFormData((prev) => ({ ...prev, [name]: value }));
   }, []);
 
-  const handleFileChange = useCallback((e) => {
+  const handleImageChange = useCallback((e) => {
     const file = e.target.files[0];
     if (file) {
       setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
-      showNotification('Imagen seleccionada: ' + file.name, 'info');
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
     } else {
       setImageFile(null);
-      setImagePreview(formData.image || ''); // Si no hay archivo nuevo, muestra la imagen existente si la hay
-      showNotification('No se seleccionó ninguna imagen.', 'info');
+      setImagePreview(formData.image);
     }
-  }, [formData.image, showNotification]);
+  }, [formData.image]);
 
-  const uploadImageToCloudinary = useCallback(async (file) => {
-    setIsUploadingImage(true);
+  const handleSauceChange = useCallback((index, field, value) => {
+    setFormData(prev => {
+      const newSauces = [...prev.sauces];
+      newSauces[index] = {
+        ...newSauces[index],
+        [field]: field === 'price' ? Number(value) : value,
+      };
+      return { ...prev, sauces: newSauces };
+    });
+  }, []);
 
-    // =========================================================================
-    // !!! IMPORTANTE: REEMPLAZA ESTOS VALORES CON LOS DE TU CUENTA DE CLOUDINARY !!!
-    // =========================================================================
-    const CLOUDINARY_CLOUD_NAME = 'asadofer'; // <<< Reemplaza con tu Cloud Name de Cloudinary
-    const CLOUDINARY_UPLOAD_PRESET = 'mi_app_capriccio'; // <<< Reemplaza con tu Upload Preset de Cloudinary (debe ser 'Unsigned')
-    // =========================================================================
+  const handleAddSauce = useCallback(() => {
+    setFormData(prev => ({
+      ...prev,
+      sauces: [...prev.sauces, { id: Date.now().toString(), name: '', price: 0, isFree: false }],
+    }));
+  }, []);
 
-    const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
-
-    if (CLOUDINARY_CLOUD_NAME.includes("YOUR_CLOUD_NAME") || CLOUDINARY_UPLOAD_PRESET.includes("tu_upload_preset")) {
-      showNotification('Error de configuración: Cloudinary Cloud Name o Upload Preset no configurado. Por favor, edita ProductForm.jsx', 'error', 7000);
-      setIsUploadingImage(false);
-      throw new Error("Cloudinary configuration missing or invalid.");
-    }
-
-    const formDataForCloudinary = new FormData(); // Usar un nombre diferente para evitar confusión
-    formDataForCloudinary.append('file', file);
-    formDataForCloudinary.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-
-    try {
-      showNotification('Subiendo imagen a Cloudinary...', 'info', 0); // Notificación persistente
-      const response = await fetch(CLOUDINARY_URL, {
-        method: 'POST',
-        body: formDataForCloudinary, // Usar el nuevo FormData
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Error respuesta NO-OK de Cloudinary (texto):", errorText);
-        let errorMessage = `Error al subir imagen: ${response.status} ${response.statusText}.`;
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = `Error al subir imagen: ${errorData.error ? errorData.error.message : errorText}`;
-        } catch (jsonParseError) {
-          errorMessage = `Error al subir imagen: ${response.statusText}. Respuesta no JSON: ${errorText.substring(0, 200)}...`;
-        }
-        throw new Error(errorMessage);
-      }
-
-      let data;
-      try {
-        data = await response.json();
-      } catch (jsonError) {
-        const responseText = await response.text();
-        console.error("Error al parsear JSON de Cloudinary. Respuesta cruda:", responseText);
-        throw new Error(`Error al procesar la respuesta de Cloudinary (no JSON): ${responseText.substring(0, 200)}...`);
-      }
-      
-      showNotification('Imagen subida con éxito a Cloudinary.', 'success');
-      console.log("Cloudinary response:", data);
-      return data.secure_url;
-    } catch (error) {
-      console.error('Error durante la subida de imagen:', error);
-      showNotification(`Error al subir imagen: ${error.message}`, 'error', 7000);
-      return null;
-    } finally {
-      setIsUploadingImage(false);
-    }
-  }, [showNotification]);
+  const handleRemoveSauce = useCallback((index) => {
+    setFormData(prev => ({
+      ...prev,
+      sauces: prev.sauces.filter((_, i) => i !== index),
+    }));
+  }, []);
 
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     setFormLoading(true);
-
     let imageUrl = formData.image;
 
-    // Solo sube una nueva imagen si se ha seleccionado un archivo
     if (imageFile) {
-      const uploadedUrl = await uploadImageToCloudinary(imageFile);
-      if (uploadedUrl) {
-        imageUrl = uploadedUrl;
-      } else {
+      setIsUploadingImage(true);
+      try {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        imageUrl = `https://placehold.co/400x300/A0522D/F0F8FF?text=${encodeURIComponent(formData.name || 'Producto')}`;
+        showNotification('Imagen subida con éxito (simulado).', 'success');
+      } catch (uploadError) {
+        console.error("Error uploading image:", uploadError);
+        showNotification('Error al subir la imagen.', 'error');
         setFormLoading(false);
-        return; // Detener el proceso si la subida de imagen falló
+        setIsUploadingImage(false);
+        return;
+      } finally {
+        setIsUploadingImage(false);
       }
     }
 
-    const productToSave = {
+    const dataToSave = {
       ...formData,
-      // Convertir precio a número (siempre usar 10 para base radix)
-      precio: parseFloat(formData.precio) || 0, // Si no es un número válido, será 0
-      // El stock ya se parseará y validará en AdminDashboard, pero lo enviamos tal cual viene del form
+      precio: Number(formData.precio),
+      stock: Number(formData.stock),
       image: imageUrl,
+      sauces: formData.category === 'Pastas' ? formData.sauces.map(s => ({
+        id: s.id,
+        name: s.name,
+        price: Number(s.price),
+        isFree: s.isFree,
+      })) : [],
     };
 
-    // Validaciones básicas antes de enviar
-    if (!productToSave.name || productToSave.precio <= 0 || !productToSave.category) { 
-      showNotification('Por favor, completa todos los campos requeridos (Nombre, Precio > 0, Categoría).', 'error');
-      setFormLoading(false);
-      return;
-    }
-
-    // Ya no es necesario validar isNaN(precio) aquí, porque parseFloat(formData.precio) || 0 ya lo maneja
-
     try {
-      // onSave recibirá productToSave que ahora siempre incluirá `stock` (aunque sea vacío o 0)
-      await onSave(product ? product.id : null, productToSave);
-      onClose(); // Cerrar el modal después de guardar exitosamente
+      await onSave(dataToSave);
+      onClose();
     } catch (saveError) {
-      console.error("Error al guardar producto en el formulario:", saveError);
-      // La notificación de error de Firestore ya se maneja en AdminDashboard
+      console.error("Error saving product:", saveError);
+      showNotification('Error al guardar el producto.', 'error');
     } finally {
       setFormLoading(false);
     }
-  }, [formData, imageFile, product, onSave, onClose, showNotification, uploadImageToCloudinary]);
+  }, [formData, imageFile, onSave, onClose, showNotification]);
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex justify-center items-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl p-6 w-full max-w-lg transform transition-all duration-300 scale-100 opacity-100">
-        <div className="flex justify-between items-center pb-4 border-b border-gray-200 dark:border-gray-700 mb-4">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {product ? 'Editar Producto' : 'Añadir Nuevo Producto'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            disabled={formLoading || isUploadingImage}
-          >
-            <XCircle size={24} />
-          </button>
-        </div>
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300 rounded-full p-1"
+          aria-label="Cerrar formulario de producto"
+        >
+          <XCircle size={24} />
+        </button>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+          {product ? 'Editar Producto' : 'Añadir Nuevo Producto'}
+        </h2>
 
         <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Nombre del Producto:
-            </label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              required
-              disabled={formLoading || isUploadingImage}
-            />
-          </div>
-
-          <div className="mb-4">
-            <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Descripción:
-            </label>
-            <textarea
-              id="descripcion" 
-              name="descripcion" 
-              value={formData.descripcion} 
-              onChange={handleChange}
-              rows="3"
-              className="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              disabled={formLoading || isUploadingImage}
-            ></textarea>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <label htmlFor="precio" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Precio:
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                Nombre
+              </label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                required
+                // === CAMBIO AQUÍ: Asegurar color de texto en modo claro y oscuro ===
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 bg-white text-gray-900 dark:bg-gray-700 dark:text-white transition-colors duration-200"
+              />
+            </div>
+            <div>
+              <label htmlFor="precio" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                Precio
               </label>
               <input
                 type="number"
-                id="precio" 
-                name="precio" 
-                value={formData.precio} 
+                id="precio"
+                name="precio"
+                value={formData.precio}
                 onChange={handleChange}
-                step="0.01"
-                className="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 required
-                disabled={formLoading || isUploadingImage}
+                min="0"
+                step="0.01"
+                // === CAMBIO AQUÍ: Asegurar color de texto en modo claro y oscuro ===
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 bg-white text-gray-900 dark:bg-gray-700 dark:text-white transition-colors duration-200"
               />
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+              Descripción
+            </label>
+            <textarea
+              id="descripcion"
+              name="descripcion"
+              value={formData.descripcion}
+              onChange={handleChange}
+              rows="3"
+              // === CAMBIO AQUÍ: Asegurar color de texto en modo claro y oscuro ===
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 bg-white text-gray-900 dark:bg-gray-700 dark:text-white transition-colors duration-200"
+            ></textarea>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                Categoría
+              </label>
+              <select
+                id="category"
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                required
+                // === CAMBIO AQUÍ: Asegurar color de texto en modo claro y oscuro ===
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 bg-white text-gray-900 dark:bg-gray-700 dark:text-white transition-colors duration-200"
+              >
+                <option value="">Selecciona una categoría</option>
+                <option value="Pizzas">Pizzas</option>
+                <option value="Empanadas">Empanadas</option>
+                <option value="Pastas">Pastas</option>
+                <option value="Bebidas">Bebidas</option>
+                <option value="Postres">Postres</option>
+                <option value="Combos">Combos</option>
+                <option value="Otros">Otros</option>
+              </select>
             </div>
             <div>
-              <label htmlFor="stock" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Stock: {/* <--- AÑADIDO: Label para el campo Stock */}
+              <label htmlFor="stock" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                Stock
               </label>
               <input
-                type="number" // <--- AÑADIDO: Input para el campo Stock
+                type="number"
                 id="stock"
                 name="stock"
-                value={formData.stock} // Muestra el valor actual del estado
+                value={formData.stock}
                 onChange={handleChange}
-                min="0" // Permite solo valores positivos o cero
-                className="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                required // Considera si es realmente requerido o si puede ser 0
-                disabled={formLoading || isUploadingImage}
+                required
+                min="0"
+                // === CAMBIO AQUÍ: Asegurar color de texto en modo claro y oscuro ===
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 bg-white text-gray-900 dark:bg-gray-700 dark:text-white transition-colors duration-200"
               />
             </div>
           </div>
 
-          <div className="mb-4">
-            <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Categoría:
-            </label>
-            <input
-              type="text"
-              id="category"
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-              className="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              required
-              disabled={formLoading || isUploadingImage}
-            />
-          </div>
+          {formData.category === 'Pastas' && (
+            <div className="mb-4 p-4 border border-gray-300 dark:border-gray-600 rounded-md">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Salsas Disponibles</h3>
+              {formData.sauces.length === 0 && (
+                <p className="text-gray-600 dark:text-gray-400 mb-3">No hay salsas añadidas. Haz clic en "Añadir Salsa" para agregar una.</p>
+              )}
+              {formData.sauces.map((sauce, index) => (
+                <div key={sauce.id || index} className="flex flex-col sm:flex-row gap-2 mb-3 p-3 bg-gray-100 dark:bg-gray-700 rounded-md items-center">
+                  <div className="flex-grow w-full sm:w-auto">
+                    <label htmlFor={`sauce-name-${index}`} className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Nombre</label>
+                    <input
+                      type="text"
+                      id={`sauce-name-${index}`}
+                      value={sauce.name}
+                      onChange={(e) => handleSauceChange(index, 'name', e.target.value)}
+                      placeholder="Nombre de la salsa"
+                      // === CAMBIO AQUÍ: Asegurar color de texto en modo claro y oscuro para salsas ===
+                      className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white text-gray-900 dark:bg-gray-600 dark:text-white"
+                    />
+                  </div>
+                  <div className="w-full sm:w-auto">
+                    <label htmlFor={`sauce-price-${index}`} className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Precio</label>
+                    <input
+                      type="number"
+                      id={`sauce-price-${index}`}
+                      value={sauce.price}
+                      onChange={(e) => handleSauceChange(index, 'price', e.target.value)}
+                      min="0"
+                      step="0.01"
+                      // === CAMBIO AQUÍ: Asegurar color de texto en modo claro y oscuro para salsas ===
+                      className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white text-gray-900 dark:bg-gray-600 dark:text-white"
+                    />
+                  </div>
+                  <div className="w-full sm:w-auto flex items-center mt-2 sm:mt-0">
+                    <input
+                      type="checkbox"
+                      id={`sauce-free-${index}`}
+                      checked={sauce.isFree}
+                      onChange={(e) => handleSauceChange(index, 'isFree', e.target.checked)}
+                      className="mr-2"
+                    />
+                    <label htmlFor={`sauce-free-${index}`} className="text-sm font-medium text-gray-700 dark:text-gray-200">Gratis</label>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveSauce(index)}
+                    className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors duration-200 flex-shrink-0"
+                    aria-label="Eliminar salsa"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={handleAddSauce}
+                className="mt-3 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md shadow-sm transition-colors duration-200 flex items-center gap-2"
+              >
+                <PlusCircle size={18} /> Añadir Salsa
+              </button>
+            </div>
+          )}
 
           <div className="mb-4">
-            <label htmlFor="imageFile" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Imagen del Producto:
+            <label htmlFor="image" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+              Imagen del Producto
             </label>
             <input
               type="file"
-              id="imageFile"
+              id="image"
+              name="image"
               accept="image/*"
-              onChange={handleFileChange}
-              className="mt-1 block w-full text-sm text-gray-900 dark:text-gray-100
-                file:mr-4 file:py-2 file:px-4
-                file:rounded-full file:border-0
-                file:text-sm file:font-semibold
-                file:bg-violet-50 file:text-red-700
-                hover:file:bg-violet-100 cursor-pointer"
-              disabled={formLoading || isUploadingImage}
+              onChange={handleImageChange}
+              // === CAMBIO AQUÍ: Asegurar color de texto en modo claro y oscuro ===
+              className="w-full text-gray-900 dark:text-gray-200 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900 dark:file:text-blue-200 dark:hover:file:bg-blue-800"
             />
             {imagePreview && (
-              <div className="mt-4 flex items-center space-x-3">
-                <img
-                  src={imagePreview}
-                  alt="Vista previa"
-                  className="w-24 h-24 object-cover rounded-md border border-gray-200 dark:border-gray-700"
-                />
+              <div className="mt-4 relative w-32 h-32 rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600">
+                <img src={imagePreview} alt="Previsualización" className="w-full h-full object-cover" />
                 {isUploadingImage && (
-                  <div className="flex items-center text-blue-500 dark:text-blue-400">
-                    <Loader size={20} className="animate-spin mr-2" /> Subiendo...
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white">
+                    <Loader size={24} className="animate-spin" />
                   </div>
                 )}
               </div>

@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { XCircle, ShoppingCart, Minus, Plus, Trash2, ArrowRight, ShoppingBag, FileText } from 'lucide-react'; 
+import { XCircle, ShoppingCart, Minus, Plus, Trash2, ArrowRight, ShoppingBag, FileText } from 'lucide-react';
 
 function ShoppingCartModal({
   cartItems,
@@ -8,16 +8,20 @@ function ShoppingCartModal({
   onDecreaseQuantity,
   onRemoveItem,
   onClearCart,
-  onViewSummary, 
+  onViewSummary,
   showNotification,
 }) {
   const total = useMemo(() => {
-    return Math.floor(cartItems.reduce((sum, item) => sum + item.precio * item.quantity, 0));
+    return Math.floor(cartItems.reduce((sum, item) => {
+      const itemPrice = item.precio + (item.selectedSauce?.price || 0);
+      return sum + itemPrice * item.quantity;
+    }, 0));
   }, [cartItems]);
 
   const handleIncrease = useCallback((item) => {
+    // Pass item.id and item.selectedSauce?.id to identify unique cart item
     if (item.quantity < item.stock) {
-      onIncreaseQuantity(item.id);
+      onIncreaseQuantity(item.id, item.selectedSauce?.id);
     } else {
       if (showNotification) {
         showNotification(`¡Atención! No puedes añadir más unidades de "${item.name}". Solo quedan ${item.stock} disponibles.`, 'warning', 3000);
@@ -26,20 +30,21 @@ function ShoppingCartModal({
   }, [onIncreaseQuantity, showNotification]);
 
   const handleDecrease = useCallback((item) => {
-    // Si la cantidad es 1 y se intenta disminuir, se elimina el producto
+    // Pass item.id and item.selectedSauce?.id to identify unique cart item
+    // If quantity is 1 and trying to decrease, remove the product
     if (item.quantity > 1) {
-      onDecreaseQuantity(item.id);
+      onDecreaseQuantity(item.id, item.selectedSauce?.id);
     } else {
-      onRemoveItem(item.id); // Elimina el producto si la cantidad llega a 0
+      onRemoveItem(item.id, item.selectedSauce?.id); // Remove the item if quantity becomes 0
     }
   }, [onDecreaseQuantity, onRemoveItem]);
 
-  const handleRemove = useCallback((id) => {
-    onRemoveItem(id);
+  const handleRemove = useCallback((id, sauceId = null) => {
+    onRemoveItem(id, sauceId);
   }, [onRemoveItem]);
 
   const handleClear = useCallback(() => {
-    // Confirmación antes de vaciar el carrito
+    // Confirmation before clearing the cart
     if (window.confirm("¿Estás seguro de que quieres vaciar el carrito?")) {
         onClearCart();
     }
@@ -52,12 +57,12 @@ function ShoppingCartModal({
         return;
     }
     if (onViewSummary) {
-      onViewSummary(); 
+      onViewSummary(cartItems); // Pass cartItems to onViewSummary
     } else {
       console.warn("ShoppingCartModal: La función onViewSummary no está definida.");
       showNotification("Error interno: La función para ver el resumen del pedido no está disponible.", "error", 4000);
     }
-  }, [onViewSummary, showNotification, cartItems.length]);
+  }, [onViewSummary, showNotification, cartItems]);
 
 
   return (
@@ -90,69 +95,80 @@ function ShoppingCartModal({
         ) : (
           <>
             <div className="flex-grow overflow-y-auto pr-2 custom-scrollbar space-y-4">
-              {cartItems.map((item) => (
-                <div key={item.id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-600">
-                  <div className="flex items-center flex-grow">
-                    {/* --- INICIO DE LA SECCIÓN CLAVE PARA DEPURAR IMÁGENES --- */}
-                    {/* Este console.log te mostrará la URL que se está intentando cargar */}
-                    {console.log(`DEBUG IMAGEN: Intentando cargar imagen para "${item.name}". URL:`, item.image || item.imageUrl || "Placeholder (no URL) - https://placehold.co/60x60/cccccc/ffffff?text=No+Img")}
-                    <img
-                      src={item.image || item.imageUrl || "https://placehold.co/60x60/cccccc/ffffff?text=No+Img"} 
-                      alt={item.name}
-                      className="w-16 h-16 rounded-lg object-cover mr-4 shadow-sm"
-                      onError={(e) => {
-                        e.target.onerror = null; // Evita bucles infinitos si el fallback también falla
-                        e.target.src = "https://placehold.co/60x60/cccccc/ffffff?text=No+Img"; // URL de imagen de placeholder
-                        console.error(`ERROR DE CARGA DE IMAGEN: No se pudo cargar la imagen para "${item.name}". URL original: ${item.image || item.imageUrl || 'No proporcionada'}.`);
-                        showNotification(`No se pudo cargar la imagen para "${item.name}".`, "error", 3000);
-                      }}
-                    />
-                    {/* --- FIN DE LA SECCIÓN CLAVE PARA DEPURAR IMÁGENES --- */}
+              {cartItems.map((item) => {
+                const itemSubtotal = Math.floor((item.precio + (item.selectedSauce?.price || 0)) * item.quantity);
+                return (
+                  <div key={item.id + (item.selectedSauce?.id || '')} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-600">
+                    <div className="flex items-center flex-grow">
+                      {/* --- INICIO DE LA SECCIÓN CLAVE PARA DEPURAR IMÁGENES --- */}
+                      {/* Este console.log te mostrará la URL que se está intentando cargar */}
+                      {console.log(`DEBUG IMAGEN: Intentando cargar imagen para "${item.name}". URL:`, item.image || item.imageUrl || "Placeholder (no URL) - https://placehold.co/60x60/cccccc/ffffff?text=No+Img")}
+                      <img
+                        src={item.image || item.imageUrl || "https://placehold.co/60x60/cccccc/ffffff?text=No+Img"}
+                        alt={item.name}
+                        className="w-16 h-16 rounded-lg object-cover mr-4 shadow-sm"
+                        onError={(e) => {
+                          e.target.onerror = null; // Evita bucles infinitos si el fallback también falla
+                          e.target.src = "https://placehold.co/60x60/cccccc/ffffff?text=No+Img"; // URL de imagen de placeholder
+                          console.error(`ERROR DE CARGA DE IMAGEN: No se pudo cargar la imagen para "${item.name}". URL original: ${item.image || item.imageUrl || 'No proporcionada'}.`);
+                          showNotification(`No se pudo cargar la imagen para "${item.name}".`, "error", 3000);
+                        }}
+                      />
+                      {/* --- FIN DE LA SECCIÓN CLAVE PARA DEPURAR IMÁGENES --- */}
 
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-lg truncate">{item.name}</h3>
-                      <p className="text-gray-600 dark:text-gray-300 text-sm">
-                        ${Math.floor(item.precio)} c/u
-                      </p>
-                      {item.stock <= 0 ? (
-                        <p className="text-red-500 text-xs font-bold mt-1">¡Agotado!</p>
-                      ) : (
-                        item.quantity > item.stock && (
-                          <p className="text-red-500 text-xs font-bold mt-1">Solo quedan {item.stock} unidades.</p>
-                        )
-                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-lg truncate">{item.name}</h3>
+                        <p className="text-gray-600 dark:text-gray-300 text-sm">
+                          Precio base: ${Math.floor(item.precio)}
+                        </p>
+                        {item.selectedSauce && (
+                          <p className="text-gray-600 dark:text-gray-300 text-sm">
+                            Salsa: {item.selectedSauce.name} {item.selectedSauce.isFree ? '(Gratis)' : `(+$${Math.floor(item.selectedSauce.price)})`}
+                          </p>
+                        )}
+                        <p className="text-gray-700 dark:text-gray-200 font-bold text-md mt-1">
+                          Subtotal: ${itemSubtotal}
+                        </p>
+                        {item.stock <= 0 ? (
+                          <p className="text-red-500 text-xs font-bold mt-1">¡Agotado!</p>
+                        ) : (
+                          item.quantity > item.stock && (
+                            <p className="text-red-500 text-xs font-bold mt-1">Solo quedan {item.stock} unidades.</p>
+                          )
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center space-x-2 flex-shrink-0 ml-4">
+                    <div className="flex items-center space-x-2 flex-shrink-0 ml-4">
+                      <button
+                        onClick={() => handleDecrease(item)}
+                        className="p-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                        aria-label={`Disminuir cantidad de ${item.name}`}
+                      >
+                        <Minus size={20} /> {/* Aumentado tamaño para mejor tactilidad */}
+                      </button>
+                      <span className="font-bold text-lg text-gray-900 dark:text-gray-100 w-8 text-center">{item.quantity}</span>
+                      <button
+                        onClick={() => handleIncrease(item)}
+                        className={`p-2 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2
+                          ${item.quantity >= item.stock
+                            ? 'bg-gray-200 dark:bg-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed focus:ring-gray-300'
+                            : 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-300'}`}
+                        aria-label={`Aumentar cantidad de ${item.name}`}
+                        disabled={item.quantity >= item.stock}
+                      >
+                        <Plus size={20} /> {/* Aumentado tamaño para mejor tactilidad */}
+                      </button>
+                    </div>
                     <button
-                      onClick={() => handleDecrease(item)}
-                      className="p-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300"
-                      aria-label={`Disminuir cantidad de ${item.name}`}
+                      onClick={() => handleRemove(item.id, item.selectedSauce?.id)}
+                      className="p-2 bg-red-100 hover:bg-red-200 dark:bg-red-800 dark:hover:bg-red-700 text-red-600 dark:text-red-200 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-300 ml-4"
+                      aria-label={`Eliminar ${item.name} del carrito`}
                     >
-                      <Minus size={20} /> {/* Aumentado tamaño para mejor tactilidad */}
-                    </button>
-                    <span className="font-bold text-lg text-gray-900 dark:text-gray-100 w-8 text-center">{item.quantity}</span>
-                    <button
-                      onClick={() => handleIncrease(item)}
-                      className={`p-2 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 
-                        ${item.quantity >= item.stock
-                          ? 'bg-gray-200 dark:bg-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed focus:ring-gray-300'
-                          : 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-300'}`}
-                      aria-label={`Aumentar cantidad de ${item.name}`}
-                      disabled={item.quantity >= item.stock}
-                    >
-                      <Plus size={20} /> {/* Aumentado tamaño para mejor tactilidad */}
+                      <Trash2 size={20} /> {/* Aumentado tamaño para mejor tactilidad */}
                     </button>
                   </div>
-                  <button
-                    onClick={() => handleRemove(item.id)}
-                    className="p-2 bg-red-100 hover:bg-red-200 dark:bg-red-800 dark:hover:bg-red-700 text-red-600 dark:text-red-200 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-300 ml-4"
-                    aria-label={`Eliminar ${item.name} del carrito`}
-                  >
-                    <Trash2 size={20} /> {/* Aumentado tamaño para mejor tactilidad */}
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
@@ -178,9 +194,9 @@ function ShoppingCartModal({
                 >
                   Vaciar Carrito
                 </button>
-                
+
                 <button
-                  onClick={handlePlaceOrderClick} 
+                  onClick={handlePlaceOrderClick}
                   disabled={cartItems.length === 0}
                   className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   aria-label="Realizar Pedido"

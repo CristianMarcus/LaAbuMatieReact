@@ -1,18 +1,23 @@
+// src/components/OrderSummaryModal.jsx
 import React, { useMemo } from 'react';
 import { XCircle, CheckCircle, ArrowLeft, Send } from 'lucide-react'; // Send para "Continuar al formulario"
 
 function OrderSummaryModal({ order, onClose, onBack, onContinue, showNotification }) {
-  const itemsInOrder = order?.cartItems || []; 
-  const hasCustomerInfo = !!order?.customerInfo; 
+  const itemsInOrder = order?.cartItems || [];
+  const hasCustomerInfo = !!order?.customerInfo;
 
   const total = useMemo(() => {
-    return Math.floor(itemsInOrder.reduce((sum, item) => sum + item.precio * item.quantity, 0));
+    return Math.floor(itemsInOrder.reduce((sum, item) => {
+      // Suma el precio base del producto más el precio de la salsa si existe
+      const itemPrice = item.precio + (item.selectedSauce?.price || 0);
+      return sum + itemPrice * item.quantity;
+    }, 0));
   }, [itemsInOrder]);
 
   if (!order) {
     console.error("OrderSummaryModal: El objeto 'order' es inválido.");
-    showNotification("No se pudo cargar el resumen del pedido. Por favor, inténtalo de nuevo.", "error", 4000); 
-    return null; 
+    showNotification("No se pudo cargar el resumen del pedido. Por favor, inténtalo de nuevo.", "error", 4000);
+    return null;
   }
 
   const { customerInfo = {}, paymentMethod, cashAmount, change, deliveryMethod } = order; // <-- Añadido deliveryMethod
@@ -28,97 +33,106 @@ function OrderSummaryModal({ order, onClose, onBack, onContinue, showNotificatio
 
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 animate-fade-in">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-xl sm:max-w-2xl lg:max-w-3xl max-h-[90vh] overflow-y-auto transform scale-95 animate-scale-in">
-        {/* Encabezado */}
-        <div className="flex justify-between items-center mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-3">
-            <CheckCircle size={32} className={hasCustomerInfo ? "text-green-600" : "text-blue-600"} /> 
-            {hasCustomerInfo ? '¡Pedido Realizado!' : 'Resumen de tu Carrito'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300 rounded-full p-1"
-            aria-label="Cerrar resumen"
-          >
-            <XCircle size={28} />
-          </button>
-        </div>
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 animate-fade-in custom-scrollbar overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-6 sm:p-8 w-full max-w-2xl transform animate-slide-in-up relative my-8 overflow-y-auto max-h-[90vh]">
+        {/* Botón de cerrar */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300 rounded-full p-2"
+          aria-label="Cerrar resumen del pedido"
+        >
+          <XCircle size={24} />
+        </button>
 
-        {/* Detalles del pedido */}
-        <div className="space-y-6 mb-8 text-gray-800 dark:text-gray-200">
-          <h3 className="text-xl font-semibold border-b border-gray-200 dark:border-gray-700 pb-2">Detalle de tu Compra:</h3>
-          <ul className="space-y-3">
-            {itemsInOrder.length > 0 ? (
-              itemsInOrder.map((item, index) => (
-                <li key={item.id || index} className="flex justify-between items-center bg-gray-50 dark:bg-gray-700 p-3 rounded-lg shadow-sm">
-                  <div className="flex items-center">
-                    <img
-                      src={item.imageUrl || item.image || "https://placehold.co/40x40/cccccc/ffffff?text=No+Img"}
-                      alt={item.name}
-                      className="w-10 h-10 rounded-md object-cover mr-3"
-                      onError={(e) => e.target.src = "https://placehold.co/40x40/cccccc/ffffff?text=No+Img"}
-                    />
-                    <span className="font-medium">{item.quantity}x {item.name}</span>
-                  </div>
-                  <span className="font-semibold">${Math.floor(item.precio * item.quantity)}</span>
-                </li>
-              ))
-            ) : (
-              <p className="text-gray-600 dark:text-gray-400 text-center">No hay productos en el resumen.</p>
+        <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6 text-center">
+          {hasCustomerInfo ? '¡Pedido Confirmado!' : 'Resumen de tu Pedido'}
+        </h2>
+
+        {hasCustomerInfo && (
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 p-4 rounded-lg mb-6 shadow-inner flex items-center gap-3">
+            <CheckCircle size={24} className="flex-shrink-0" />
+            <p className="font-semibold">Tu pedido ha sido enviado. ¡Gracias por tu compra!</p>
+          </div>
+        )}
+
+        {/* Detalles del cliente (si ya se ingresaron) */}
+        {hasCustomerInfo && (
+          <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm border border-gray-100 dark:border-gray-600">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">Datos del Cliente</h3>
+            <p className="text-gray-700 dark:text-gray-300"><strong>Nombre:</strong> {customerInfo.name}</p>
+            <p className="text-gray-700 dark:text-gray-300"><strong>Teléfono:</strong> {customerInfo.phone}</p>
+            <p className="text-gray-700 dark:text-gray-300"><strong>Método de Entrega:</strong> {deliveryMethodText}</p>
+            {customerInfo.deliveryMethod === 'delivery' && (
+              <p className="text-gray-700 dark:text-gray-300"><strong>Dirección:</strong> {customerInfo.address}</p>
             )}
+            <p className="text-gray-700 dark:text-gray-300"><strong>Tipo de Pedido:</strong> {customerInfo.orderType === 'immediate' ? 'Inmediato' : `Reservado para las ${customerInfo.orderTime}`}</p>
+            <p className="text-gray-700 dark:text-gray-300"><strong>Método de Pago:</strong> {customerInfo.paymentMethod === 'cash' ? 'Efectivo' : 'Mercado Pago'}</p>
+            {customerInfo.paymentMethod === 'cash' && customerInfo.cashAmount && (
+              <>
+                <p className="text-gray-700 dark:text-gray-300"><strong>Paga con:</strong> ${customerInfo.cashAmount}</p>
+                <p className="text-gray-700 dark:text-gray-300"><strong>Vuelto:</strong> ${customerInfo.change}</p>
+              </>
+            )}
+            {customerInfo.notes && (
+              <p className="text-gray-700 dark:text-gray-300"><strong>Notas:</strong> {customerInfo.notes}</p>
+            )}
+          </div>
+        )}
+
+        {/* Lista de productos en el pedido */}
+        <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm border border-gray-100 dark:border-gray-600">
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">Productos</h3>
+          <ul className="space-y-2">
+            {itemsInOrder.map((item, index) => (
+              <li key={item.id + (item.selectedSauce?.id || '') + index} className="flex justify-between items-center text-gray-700 dark:text-gray-300">
+                <div>
+                  {item.name} x {item.quantity}
+                  {item.selectedSauce && ( // Muestra la salsa si existe
+                    <span className="text-sm text-gray-600 dark:text-gray-400 block sm:inline-block sm:ml-2">
+                      (Salsa: {item.selectedSauce.name}
+                      {!item.selectedSauce.isFree && item.selectedSauce.price > 0 && ` +$${item.selectedSauce.price}`}
+                      )
+                    </span>
+                  )}
+                </div>
+                <span className="font-semibold">${(item.precio + (item.selectedSauce?.price || 0)) * item.quantity}</span>
+              </li>
+            ))}
           </ul>
-          <div className="flex justify-between items-center text-2xl font-bold mt-4 border-t border-gray-300 dark:border-gray-600 pt-4">
+          <div className="border-t border-gray-200 dark:border-gray-600 pt-3 mt-3 flex justify-between items-center text-xl font-bold text-gray-900 dark:text-gray-100">
             <span>Total:</span>
             <span>${total}</span>
           </div>
-
-          {/* Sección de Datos de Contacto y Pago (solo visible en el resumen FINAL) */}
-          {hasCustomerInfo && (
-            <>
-              <h3 className="text-xl font-semibold border-b border-gray-200 dark:border-gray-700 pb-2 mt-6">Tus Datos:</h3>
-              <p><strong>Nombre:</strong> {customerInfo.name}</p>
-              <p><strong>Teléfono:</strong> {customerInfo.phone}</p>
-              {/* NUEVO: Mostrar el método de envío y la dirección si aplica */}
-              <p><strong>Método de Envío:</strong> {deliveryMethodText}</p>
-              {deliveryMethod === 'delivery' && (
-                <p><strong>Dirección:</strong> {customerInfo.address}</p>
-              )}
-
-
-              <h3 className="text-xl font-semibold border-b border-gray-200 dark:border-gray-700 pb-2 mt-6">Forma de Pago:</h3>
-              <p><strong>Método:</strong> {paymentMethod === 'cash' ? 'Efectivo' : 'Mercado Pago'}</p>
-              {paymentMethod === 'cash' && (
-                <>
-                  <p><strong>Abonaste con:</strong> ${Math.floor(cashAmount)}</p>
-                  <p className="font-bold text-green-700 dark:text-green-300"><strong>Tu Vuelto:</strong> ${Math.floor(change)}</p>
-                </>
-              )}
-              {paymentMethod === 'mercadopago' && (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  *Recuerda que se requerirá comprobante de pago al recibir tu pedido.
-                </p>
-              )}
-            </>
-          )}
         </div>
+
+        {paymentMethod === 'mercadopago' && !hasCustomerInfo && (
+          <>
+            <p className="text-center text-blue-600 dark:text-blue-400 font-medium mb-4">
+              Serás redirigido a Mercado Pago para completar tu pago.
+            </p>
+            <p className="text-center text-gray-600 dark:text-gray-400">
+              *Recuerda que se requerirá comprobante de pago al recibir tu pedido.
+            </p>
+          </>
+        )}
 
         {/* Botones de acción */}
         <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4 mt-8">
           <button
-            onClick={onBack} 
+            onClick={onBack}
             className="w-full sm:w-auto bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100 font-bold py-3 px-6 rounded-xl shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-gray-300"
             aria-label="Volver"
           >
             <ArrowLeft size={20} className="inline-block mr-2" /> {hasCustomerInfo ? 'Seguir Comprando' : 'Volver al Carrito'}
           </button>
-          
+
           <button
-            onClick={onContinue} 
-            className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-red-300"
-            aria-label={hasCustomerInfo ? "Volver al inicio" : "Continuar al formulario"}
+            onClick={onContinue}
+            className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Continuar"
+            disabled={itemsInOrder.length === 0}
           >
-            {hasCustomerInfo ? (<>¡Entendido!</>) : (<><Send size={20} /> Continuar al formulario</>)}
+            {hasCustomerInfo ? 'Cerrar' : 'Continuar al Pedido'} <Send size={20} />
           </button>
         </div>
       </div>
