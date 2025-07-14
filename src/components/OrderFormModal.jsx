@@ -274,7 +274,8 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
     if (finalFormIsValid) {
       try {
         // Si el pedido es inmediato, establece orderTime a la hora actual
-        const finalOrderTime = formData.orderType === 'immediate' ? new Date().toISOString() : formData.orderTime;
+        // Aseguramos que finalOrderTime siempre sea una cadena, incluso si es vacía
+        const finalOrderTime = formData.orderType === 'immediate' ? new Date().toISOString() : formData.orderTime || '';
 
         await onSendOrder({ ...formData, orderTime: finalOrderTime });
       } catch (submitError) {

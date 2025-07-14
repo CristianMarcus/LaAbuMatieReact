@@ -65,7 +65,13 @@ function OrderSummaryModal({ order, onClose, onBack, onContinue, showNotificatio
             {customerInfo.deliveryMethod === 'delivery' && (
               <p className="text-gray-700 dark:text-gray-300"><strong>Dirección:</strong> {customerInfo.address}</p>
             )}
-            <p className="text-gray-700 dark:text-gray-300"><strong>Tipo de Pedido:</strong> {customerInfo.orderType === 'immediate' ? 'Inmediato' : `Reservado para las ${customerInfo.orderTime}`}</p>
+            <p className="text-gray-700 dark:text-gray-300">
+              <strong>Tipo de Pedido:</strong>{' '}
+              {customerInfo.orderType === 'immediate'
+                ? 'Inmediato'
+                : `Reservado para las ${customerInfo.orderTime ? new Date(customerInfo.orderTime).toLocaleString() : 'hora no especificada'}`
+              }
+            </p>
             <p className="text-gray-700 dark:text-gray-300"><strong>Método de Pago:</strong> {customerInfo.paymentMethod === 'cash' ? 'Efectivo' : 'Mercado Pago'}</p>
             {customerInfo.paymentMethod === 'cash' && customerInfo.cashAmount && (
               <>
