@@ -38,39 +38,44 @@ export const useCart = (showNotification) => {
   }, [cartItems]);
 
   // Función auxiliar para generar una clave única para un ítem del carrito
-  // Ahora considera tanto la salsa como el sabor
-  const generateItemKey = useCallback((productId, sauceId = null, flavorId = null) => {
-    return `${productId}-${sauceId || 'no-sauce'}-${flavorId || 'no-flavor'}`;
+  // Ahora considera la salsa, el sabor y el TAMAÑO
+  const generateItemKey = useCallback((productId, sauceId = null, flavorId = null, sizeId = null) => { // AHORA RECIBE SIZEID
+    return `${productId}-${sauceId || 'no-sauce'}-${flavorId || 'no-flavor'}-${sizeId || 'no-size'}`; // INCLUYE SIZEID
   }, []);
 
   // Añadir producto al carrito
-  // productToAdd ahora puede incluir selectedSauce y selectedFlavor
+  // productToAdd ahora puede incluir selectedSauce, selectedFlavor y selectedSize
   const handleAddToCart = useCallback((productToAdd, quantityToAdd = 1) => {
     setCartItems((prevItems) => {
-      // Genera un ID único para el ítem del carrito basado en el producto, la salsa y el sabor
+      // Genera un ID único para el ítem del carrito basado en el producto, la salsa, el sabor y el tamaño
       const itemKey = generateItemKey(
         productToAdd.id,
         productToAdd.selectedSauce?.id,
-        productToAdd.selectedFlavor?.id // AHORA INCLUYE EL ID DEL SABOR
+        productToAdd.selectedFlavor?.id,
+        productToAdd.selectedSize?.id // AHORA INCLUYE EL ID DEL TAMAÑO
       );
 
       const existingItem = prevItems.find((item) => {
         const existingItemKey = generateItemKey(
           item.id,
           item.selectedSauce?.id,
-          item.selectedFlavor?.id // AHORA INCLUYE EL ID DEL SABOR
+          item.selectedFlavor?.id,
+          item.selectedSize?.id // AHORA INCLUYE EL ID DEL TAMAÑO
         );
         return existingItemKey === itemKey;
       });
 
       // Función auxiliar para construir el nombre del producto en las notificaciones
-      const getNotificationName = (product, sauce, flavor) => {
+      const getNotificationName = (product, sauce, flavor, size) => { // AHORA RECIBE SIZE
         let name = product.name;
         if (flavor) {
           name += ` (Sabor: ${flavor.name})`;
         }
         if (sauce) {
           name += ` (Salsa: ${sauce.name})`;
+        }
+        if (size) { // NUEVO: Añadir tamaño al nombre de la notificación
+          name += ` (Tamaño: ${size.name})`;
         }
         return name;
       };
@@ -79,18 +84,18 @@ export const useCart = (showNotification) => {
         const newQuantity = existingItem.quantity + quantityToAdd;
         if (newQuantity <= productToAdd.stock) {
           showNotification(
-            `${getNotificationName(productToAdd, productToAdd.selectedSauce, productToAdd.selectedFlavor)} +${quantityToAdd} unidad(es)`,
+            `${getNotificationName(productToAdd, productToAdd.selectedSauce, productToAdd.selectedFlavor, productToAdd.selectedSize)} +${quantityToAdd} unidad(es)`,
             'info',
             1500
           );
           return prevItems.map((item) =>
-            generateItemKey(item.id, item.selectedSauce?.id, item.selectedFlavor?.id) === itemKey
+            generateItemKey(item.id, item.selectedSauce?.id, item.selectedFlavor?.id, item.selectedSize?.id) === itemKey // AHORA INCLUYE EL ID DEL TAMAÑO
               ? { ...item, quantity: newQuantity }
               : item
           );
         } else {
           showNotification(
-            `No se puede añadir más de "${getNotificationName(productToAdd, productToAdd.selectedSauce, productToAdd.selectedFlavor)}". Stock disponible: ${productToAdd.stock - existingItem.quantity}`,
+            `No se puede añadir más de "${getNotificationName(productToAdd, productToAdd.selectedSauce, productToAdd.selectedFlavor, productToAdd.selectedSize)}". Stock disponible: ${productToAdd.stock - existingItem.quantity}`,
             'warning',
             3000
           );
@@ -99,15 +104,15 @@ export const useCart = (showNotification) => {
       } else {
         if (quantityToAdd <= productToAdd.stock) {
           showNotification(
-            `"${getNotificationName(productToAdd, productToAdd.selectedSauce, productToAdd.selectedFlavor)}" añadido al carrito`,
+            `"${getNotificationName(productToAdd, productToAdd.selectedSauce, productToAdd.selectedFlavor, productToAdd.selectedSize)}" añadido al carrito`,
             'success',
             2000
           );
-          // Asegúrate de que el objeto productToAdd ya contenga selectedSauce y selectedFlavor
+          // Asegúrate de que el objeto productToAdd ya contenga selectedSauce, selectedFlavor y selectedSize
           return [...prevItems, { ...productToAdd, quantity: quantityToAdd }];
         } else {
           showNotification(
-            `No se puede añadir "${getNotificationName(productToAdd, productToAdd.selectedSauce, productToAdd.selectedFlavor)}". Stock disponible: ${productToAdd.stock}`,
+            `No se puede añadir "${getNotificationName(productToAdd, productToAdd.selectedSauce, productToAdd.selectedFlavor, productToAdd.selectedSize)}". Stock disponible: ${productToAdd.stock}`,
             'warning',
             3000
           );
@@ -117,19 +122,19 @@ export const useCart = (showNotification) => {
     });
   }, [showNotification, generateItemKey]);
 
-  // Aumentar cantidad de un ítem en el carrito (ahora con sauceId y flavorId)
-  const handleIncreaseQuantity = useCallback((productId, sauceId = null, flavorId = null) => { // AHORA RECIBE FLAVORID
+  // Aumentar cantidad de un ítem en el carrito (ahora con sauceId, flavorId y sizeId)
+  const handleIncreaseQuantity = useCallback((productId, sauceId = null, flavorId = null, sizeId = null) => { // AHORA RECIBE SIZEID
     setCartItems((prevItems) =>
       prevItems.map((item) => {
-        const itemKey = generateItemKey(item.id, item.selectedSauce?.id, item.selectedFlavor?.id);
-        const targetKey = generateItemKey(productId, sauceId, flavorId); // AHORA INCLUYE FLAVORID
+        const itemKey = generateItemKey(item.id, item.selectedSauce?.id, item.selectedFlavor?.id, item.selectedSize?.id); // AHORA INCLUYE SIZEID
+        const targetKey = generateItemKey(productId, sauceId, flavorId, sizeId); // AHORA INCLUYE SIZEID
 
         if (itemKey === targetKey) {
           const newQuantity = item.quantity + 1;
           if (newQuantity <= item.stock) {
             return { ...item, quantity: newQuantity };
           } else {
-            showNotification(`No hay más stock de "${item.name} ${item.selectedSauce ? `con ${item.selectedSauce.name}` : ''} ${item.selectedFlavor ? `sabor ${item.selectedFlavor.name}` : ''}" disponible.`, 'warning', 2000); // Notificación con sabor
+            showNotification(`No hay más stock de "${item.name} ${item.selectedSauce ? `con ${item.selectedSauce.name}` : ''} ${item.selectedFlavor ? `sabor ${item.selectedFlavor.name}` : ''} ${item.selectedSize ? `tamaño ${item.selectedSize.name}` : ''}" disponible.`, 'warning', 2000); // Notificación con sabor y tamaño
             return item;
           }
         }
@@ -138,12 +143,12 @@ export const useCart = (showNotification) => {
     );
   }, [showNotification, generateItemKey]);
 
-  // Disminuir cantidad de un ítem en el carrito (ahora con sauceId y flavorId)
-  const handleDecreaseQuantity = useCallback((productId, sauceId = null, flavorId = null) => { // AHORA RECIBE FLAVORID
+  // Disminuir cantidad de un ítem en el carrito (ahora con sauceId, flavorId y sizeId)
+  const handleDecreaseQuantity = useCallback((productId, sauceId = null, flavorId = null, sizeId = null) => { // AHORA RECIBE SIZEID
     setCartItems((prevItems) =>
       prevItems.map((item) => {
-        const itemKey = generateItemKey(item.id, item.selectedSauce?.id, item.selectedFlavor?.id);
-        const targetKey = generateItemKey(productId, sauceId, flavorId); // AHORA INCLUYE FLAVORID
+        const itemKey = generateItemKey(item.id, item.selectedSauce?.id, item.selectedFlavor?.id, item.selectedSize?.id); // AHORA INCLUYE SIZEID
+        const targetKey = generateItemKey(productId, sauceId, flavorId, sizeId); // AHORA INCLUYE SIZEID
 
         if (itemKey === targetKey) {
           return { ...item, quantity: item.quantity > 1 ? item.quantity - 1 : 0 }; // Set to 0 to be filtered out
@@ -153,15 +158,15 @@ export const useCart = (showNotification) => {
     );
   }, [generateItemKey]);
 
-  // Eliminar un ítem del carrito (ahora con sauceId y flavorId)
-  const handleRemoveItem = useCallback((productId, sauceId = null, flavorId = null) => { // AHORA RECIBE FLAVORID
+  // Eliminar un ítem del carrito (ahora con sauceId, flavorId y sizeId)
+  const handleRemoveItem = useCallback((productId, sauceId = null, flavorId = null, sizeId = null) => { // AHORA RECIBE SIZEID
     setCartItems((prevItems) => {
-      const targetKey = generateItemKey(productId, sauceId, flavorId); // AHORA INCLUYE FLAVORID
-      const removedItem = prevItems.find(item => generateItemKey(item.id, item.selectedSauce?.id, item.selectedFlavor?.id) === targetKey); // Busca con sabor
+      const targetKey = generateItemKey(productId, sauceId, flavorId, sizeId); // AHORA INCLUYE SIZEID
+      const removedItem = prevItems.find(item => generateItemKey(item.id, item.selectedSauce?.id, item.selectedFlavor?.id, item.selectedSize?.id) === targetKey); // Busca con sabor y tamaño
       if (removedItem) {
-        showNotification(`"${removedItem.name} ${removedItem.selectedSauce ? `con ${removedItem.selectedSauce.name}` : ''} ${removedItem.selectedFlavor ? `sabor ${removedItem.selectedFlavor.name}` : ''}" eliminado del carrito`, 'error', 2000); // Notificación con sabor
+        showNotification(`"${removedItem.name} ${removedItem.selectedSauce ? `con ${removedItem.selectedSauce.name}` : ''} ${removedItem.selectedFlavor ? `sabor ${removedItem.selectedFlavor.name}` : ''} ${removedItem.selectedSize ? `tamaño ${removedItem.selectedSize.name}` : ''}" eliminado del carrito`, 'error', 2000); // Notificación con sabor y tamaño
       }
-      return prevItems.filter((item) => generateItemKey(item.id, item.selectedSauce?.id, item.selectedFlavor?.id) !== targetKey); // Filtra con sabor
+      return prevItems.filter((item) => generateItemKey(item.id, item.selectedSauce?.id, item.selectedFlavor?.id, item.selectedSize?.id) !== targetKey); // Filtra con sabor y tamaño
     });
   }, [showNotification, generateItemKey]);
 

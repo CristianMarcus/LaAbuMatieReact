@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { XCircle, Image as ImageIcon, Loader, Trash2, PlusCircle } from 'lucide-react';
 
-const ProductForm = ({ product, onClose, onSave, showNotification }) => {
+const ProductForm = ({ product, onClose, onSave, showNotification, categories }) => { // AÑADIDO: categories prop
   const [formData, setFormData] = useState({
     name: '',
     descripcion: '',
@@ -11,6 +11,7 @@ const ProductForm = ({ product, onClose, onSave, showNotification }) => {
     image: '', // URL de la imagen
     sauces: [], // Campo para salsas
     flavors: [], // Campo para sabores
+    sizes: [], // NUEVO: Campo para tamaños
   });
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
@@ -28,6 +29,7 @@ const ProductForm = ({ product, onClose, onSave, showNotification }) => {
         image: product.image || '',
         sauces: product.sauces || [],
         flavors: product.flavors || [],
+        sizes: product.sizes || [], // NUEVO: Inicializar tamaños
       });
       setImagePreview(product.image || '');
     } else {
@@ -40,6 +42,7 @@ const ProductForm = ({ product, onClose, onSave, showNotification }) => {
         image: '',
         sauces: [],
         flavors: [],
+        sizes: [], // NUEVO: Inicializar tamaños para nuevo producto
       });
       setImagePreview('');
     }
@@ -118,6 +121,32 @@ const ProductForm = ({ product, onClose, onSave, showNotification }) => {
     }));
   }, []);
 
+  // NUEVO: Manejadores para la gestión de tamaños
+  const handleSizeChange = useCallback((index, field, value) => {
+    setFormData(prev => {
+      const newSizes = [...prev.sizes];
+      newSizes[index] = {
+        ...newSizes[index],
+        [field]: field === 'price' ? Number(value) : value,
+      };
+      return { ...prev, sizes: newSizes };
+    });
+  }, []);
+
+  const handleAddSize = useCallback(() => {
+    setFormData(prev => ({
+      ...prev,
+      sizes: [...prev.sizes, { id: Date.now().toString() + Math.random().toString(36).substring(2, 9), name: '', price: 0 }],
+    }));
+  }, []);
+
+  const handleRemoveSize = useCallback((index) => {
+    setFormData(prev => ({
+      ...prev,
+      sizes: prev.sizes.filter((_, i) => i !== index),
+    }));
+  }, []);
+
 
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
@@ -183,7 +212,7 @@ const ProductForm = ({ product, onClose, onSave, showNotification }) => {
       precio: Number(formData.precio),
       stock: Number(formData.stock),
       image: imageUrl, // Guarda la URL real de la imagen (de Cloudinary)
-      // Solo guarda salsas si la categoría es 'Pastas'
+      // Solo guarda salsas y sabores si la categoría es 'Pastas'
       sauces: formData.category === 'Pastas' && Array.isArray(formData.sauces)
         ? formData.sauces.map(s => ({
             id: s.id,
@@ -192,11 +221,18 @@ const ProductForm = ({ product, onClose, onSave, showNotification }) => {
             isFree: s.isFree,
           }))
         : [],
-      // Solo guarda sabores si la categoría es 'Pastas'
       flavors: formData.category === 'Pastas' && Array.isArray(formData.flavors)
         ? formData.flavors.map(f => ({
             id: f.id,
             name: f.name,
+          }))
+        : [],
+      // NUEVO: Solo guarda tamaños si la categoría es 'Papas Fritas'
+      sizes: formData.category === 'Papas Fritas' && Array.isArray(formData.sizes)
+        ? formData.sizes.map(s => ({
+            id: s.id,
+            name: s.name,
+            price: Number(s.price),
           }))
         : [],
     };
@@ -310,13 +346,9 @@ const ProductForm = ({ product, onClose, onSave, showNotification }) => {
               autoComplete="off"
             >
               <option value="">Selecciona una categoría</option>
-              <option value="Pizzas">Pizzas</option>
-              <option value="Empanadas">Empanadas</option>
-              <option value="Pastas">Pastas</option>
-              <option value="Bebidas">Bebidas</option>
-              <option value="Postres">Postres</option>
-              <option value="Combos">Combos</option>
-              <option value="Otros">Otros</option>
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.name}>{cat.name}</option>
+              ))}
             </select>
           </div>
 
@@ -426,6 +458,62 @@ const ProductForm = ({ product, onClose, onSave, showNotification }) => {
                 className="mt-3 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md shadow-sm transition-colors duration-200 flex items-center gap-2"
               >
                 <PlusCircle size={18} /> Añadir Salsa
+              </button>
+            </div>
+          )}
+
+          {/* NUEVO: SECCIÓN PARA TAMAÑOS (solo si la categoría es Papas Fritas) */}
+          {formData.category === 'Papas Fritas' && (
+            <div className="mb-4 p-4 border border-gray-300 dark:border-gray-600 rounded-md">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Tamaños Disponibles</h3>
+              {formData.sizes.length === 0 && (
+                <p className="text-gray-600 dark:text-gray-400 mb-3">No hay tamaños añadidos. Haz clic en "Añadir Tamaño" para agregar uno.</p>
+              )}
+              {formData.sizes.map((size, index) => (
+                <div key={size.id || index} className="flex flex-col sm:flex-row gap-2 mb-3 p-3 bg-gray-100 dark:bg-gray-700 rounded-md items-center">
+                  <div className="flex-grow w-full sm:w-auto">
+                    <label htmlFor={`size-name-${index}`} className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Nombre del Tamaño</label>
+                    <input
+                      type="text"
+                      id={`size-name-${index}`}
+                      name={`size-name-${index}`}
+                      value={size.name}
+                      onChange={(e) => handleSizeChange(index, 'name', e.target.value)}
+                      placeholder="Ej: Chico, Mediano, Grande"
+                      className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white text-gray-900 dark:bg-gray-600 dark:text-white"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div className="w-full sm:w-auto">
+                    <label htmlFor={`size-price-${index}`} className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Precio Adicional</label>
+                    <input
+                      type="number"
+                      id={`size-price-${index}`}
+                      name={`size-price-${index}`}
+                      value={size.price}
+                      onChange={(e) => handleSizeChange(index, 'price', e.target.value)}
+                      min="0"
+                      step="0.01"
+                      className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white text-gray-900 dark:bg-gray-600 dark:text-white"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveSize(index)}
+                    className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors duration-200 flex-shrink-0"
+                    aria-label="Eliminar tamaño"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={handleAddSize}
+                className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md shadow-sm transition-colors duration-200 flex items-center gap-2"
+              >
+                <PlusCircle size={18} /> Añadir Tamaño
               </button>
             </div>
           )}

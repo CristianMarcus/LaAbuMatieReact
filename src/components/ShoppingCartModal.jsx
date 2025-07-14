@@ -13,16 +13,16 @@ function ShoppingCartModal({
 }) {
   const total = useMemo(() => {
     return Math.floor(cartItems.reduce((sum, item) => {
-      // Suma el precio base del producto más el precio de la salsa y el sabor si existen
-      const itemPrice = item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0); // NUEVO: Sumar precio del sabor
+      // Suma el precio base del producto más el precio de la salsa, el sabor y el tamaño si existen
+      const itemPrice = item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0) + (item.selectedSize?.price || 0); // NUEVO: Sumar precio del tamaño
       return sum + itemPrice * item.quantity;
     }, 0));
   }, [cartItems]);
 
   const handleIncrease = useCallback((item) => {
-    // Pass item.id, item.selectedSauce?.id, and item.selectedFlavor?.id to identify unique cart item
+    // Pass item.id, item.selectedSauce?.id, item.selectedFlavor?.id, and item.selectedSize?.id to identify unique cart item
     if (item.quantity < item.stock) {
-      onIncreaseQuantity(item.id, item.selectedSauce?.id, item.selectedFlavor?.id); // NUEVO: Pasar flavorId
+      onIncreaseQuantity(item.id, item.selectedSauce?.id, item.selectedFlavor?.id, item.selectedSize?.id); // NUEVO: Pasar sizeId
     } else {
       if (showNotification) {
         showNotification(`¡Atención! No puedes añadir más unidades de "${item.name}". Solo quedan ${item.stock} disponibles.`, 'warning', 3000);
@@ -31,17 +31,17 @@ function ShoppingCartModal({
   }, [onIncreaseQuantity, showNotification]);
 
   const handleDecrease = useCallback((item) => {
-    // Pass item.id, item.selectedSauce?.id, and item.selectedFlavor?.id to identify unique cart item
+    // Pass item.id, item.selectedSauce?.id, item.selectedFlavor?.id, and item.selectedSize?.id to identify unique cart item
     // If quantity is 1 and trying to decrease, remove the product
     if (item.quantity > 1) {
-      onDecreaseQuantity(item.id, item.selectedSauce?.id, item.selectedFlavor?.id); // NUEVO: Pasar flavorId
+      onDecreaseQuantity(item.id, item.selectedSauce?.id, item.selectedFlavor?.id, item.selectedSize?.id); // NUEVO: Pasar sizeId
     } else {
-      onRemoveItem(item.id, item.selectedSauce?.id, item.selectedFlavor?.id); // NUEVO: Pasar flavorId
+      onRemoveItem(item.id, item.selectedSauce?.id, item.selectedFlavor?.id, item.selectedSize?.id); // NUEVO: Pasar sizeId
     }
   }, [onDecreaseQuantity, onRemoveItem]);
 
-  const handleRemove = useCallback((id, sauceId = null, flavorId = null) => { // NUEVO: Recibir flavorId
-    onRemoveItem(id, sauceId, flavorId); // NUEVO: Pasar flavorId
+  const handleRemove = useCallback((id, sauceId = null, flavorId = null, sizeId = null) => { // NUEVO: Recibir sizeId
+    onRemoveItem(id, sauceId, flavorId, sizeId); // NUEVO: Pasar sizeId
   }, [onRemoveItem]);
 
   const handleClear = useCallback(() => {
@@ -99,12 +99,12 @@ function ShoppingCartModal({
             {/* Lista de ítems del carrito: adaptable con flex-wrap y espaciado */}
             <div className="flex-grow overflow-y-auto pr-2 custom-scrollbar space-y-4">
               {cartItems.map((item) => {
-                // Calcular subtotal del ítem, incluyendo precio de salsa y sabor
-                const itemPrice = item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0); // NUEVO: Sumar precio del sabor
+                // Calcular subtotal del ítem, incluyendo precio de salsa, sabor y tamaño
+                const itemPrice = item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0) + (item.selectedSize?.price || 0); // NUEVO: Sumar precio del tamaño
                 const itemSubtotal = Math.floor(itemPrice * item.quantity);
                 return (
-                  // Añadido item.selectedFlavor?.id a la key para unicidad
-                  <div key={item.id + (item.selectedSauce?.id || '') + (item.selectedFlavor?.id || '')} className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gray-50 dark:bg-gray-700 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-600">
+                  // Añadido item.selectedSize?.id a la key para unicidad
+                  <div key={item.id + (item.selectedSauce?.id || '') + (item.selectedFlavor?.id || '') + (item.selectedSize?.id || '')} className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gray-50 dark:bg-gray-700 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-600">
                     {/* Contenido del ítem: imagen y detalles */}
                     <div className="flex items-center flex-grow w-full sm:w-auto mb-4 sm:mb-0">
                       <img
@@ -124,7 +124,7 @@ function ShoppingCartModal({
                         <p className="text-gray-600 dark:text-gray-300 text-sm">
                           Precio base: ${Math.floor(item.precio)}
                         </p>
-                        {item.selectedFlavor && ( // NUEVO: Mostrar sabor si existe
+                        {item.selectedFlavor && ( // Mostrar sabor si existe
                           <p className="text-gray-600 dark:text-gray-300 text-sm">
                             Sabor: {item.selectedFlavor.name}
                           </p>
@@ -132,6 +132,11 @@ function ShoppingCartModal({
                         {item.selectedSauce && ( // Muestra la salsa si existe
                           <p className="text-gray-600 dark:text-gray-300 text-sm">
                             Salsa: {item.selectedSauce.name} {item.selectedSauce.isFree ? '(Gratis)' : `(+$${Math.floor(item.selectedSauce.price)})`}
+                          </p>
+                        )}
+                        {item.selectedSize && ( // NUEVO: Muestra el tamaño si existe
+                          <p className="text-gray-600 dark:text-gray-300 text-sm">
+                            Tamaño: {item.selectedSize.name} {item.selectedSize.price > 0 ? `(+$${Math.floor(item.selectedSize.price)})` : ''}
                           </p>
                         )}
                         <p className="text-gray-700 dark:text-gray-200 font-bold text-md mt-1">
@@ -168,7 +173,7 @@ function ShoppingCartModal({
                         <Plus size={20} />
                       </button>
                       <button
-                        onClick={() => handleRemove(item.id, item.selectedSauce?.id, item.selectedFlavor?.id)} // NUEVO: Pasar flavorId
+                        onClick={() => handleRemove(item.id, item.selectedSauce?.id, item.selectedFlavor?.id, item.selectedSize?.id)} // NUEVO: Pasar sizeId
                         className="p-2 bg-red-100 hover:bg-red-200 dark:bg-red-800 dark:hover:bg-red-700 text-red-600 dark:text-red-200 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-300 ml-4"
                         aria-label={`Eliminar ${item.name} del carrito`}
                       >

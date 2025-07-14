@@ -27,11 +27,11 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
     }
   }, []);
 
-  // Calcula el total del carrito, incluyendo salsas y sabores
+  // Calcula el total del carrito, incluyendo salsas, sabores y tamaños
   const total = useMemo(() => {
     return Math.floor(cartItems.reduce((sum, item) => {
-      // Suma el precio base del producto más el precio de la salsa y el sabor si existen
-      const itemPrice = item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0); // AHORA INCLUYE SABOR
+      // Suma el precio base del producto más el precio de la salsa, el sabor y el tamaño si existen
+      const itemPrice = item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0) + (item.selectedSize?.price || 0); // NUEVO: Sumar precio del tamaño
       return sum + itemPrice * item.quantity;
     }, 0));
   }, [cartItems]);

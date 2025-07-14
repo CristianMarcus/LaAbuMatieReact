@@ -591,7 +591,10 @@ function App() {
                 <ProductDetailsModal
                   product={selectedProduct}
                   onClose={handleCloseProductDetails}
-                  onAddToCart={handleAddToCart}
+                  // PASANDO selectedSauce, selectedFlavor, y selectedSize a handleAddToCart
+                  onAddToCart={(productToAdd, quantity, selectedSauce, selectedFlavor, selectedSize) =>
+                    handleAddToCart(productToAdd, quantity, selectedSauce, selectedFlavor, selectedSize)
+                  }
                   db={db}
                   appId={actualFirebaseProjectId}
                   userId={userId}

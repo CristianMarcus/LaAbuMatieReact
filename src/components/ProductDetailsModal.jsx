@@ -32,15 +32,28 @@ function ProductDetailsModal({
 
   // Estado para la selección de salsa y sabor
   const [selectedSauce, setSelectedSauce] = useState(null);
-  const [selectedFlavor, setSelectedFlavor] = useState(null); // NUEVO: Estado para el sabor seleccionado
+  const [selectedFlavor, setSelectedFlavor] = useState(null); // Estado para el sabor seleccionado
 
-  const productPrice = product.precio || 0;
-  const isOutOfStock = product.stock <= 0;
+  // NUEVO: Estado para la selección de tamaño
+  const [selectedSize, setSelectedSize] = useState(null);
 
-  // Calcula el precio total a mostrar (producto + salsa + sabor)
+  // Calcula el precio total a mostrar (producto + salsa + sabor + tamaño)
   const displayPrice = useMemo(() => {
-    return productPrice + (selectedSauce?.price || 0) + (selectedFlavor?.price || 0); // INCLUYE PRECIO DEL SABOR
-  }, [productPrice, selectedSauce, selectedFlavor]); // Añadido selectedFlavor a las dependencias
+    let price = product.precio || 0;
+    if (selectedSauce && !selectedSauce.isFree) {
+      price += selectedSauce.price || 0;
+    }
+    if (selectedFlavor) {
+      price += selectedFlavor.price || 0;
+    }
+    // NUEVO: Sumar precio del tamaño seleccionado
+    if (selectedSize) {
+      price += selectedSize.price || 0;
+    }
+    return Math.floor(price);
+  }, [product.precio, selectedSauce, selectedFlavor, selectedSize]); // Añadido selectedSize a las dependencias
+
+  const isOutOfStock = product.stock <= 0;
 
   // Cargar reseñas para este producto
   useEffect(() => {
@@ -68,34 +81,40 @@ function ProductDetailsModal({
     fetchReviews();
   }, [db, product, appId, showNotification]);
 
-  // Inicializa la cantidad, salsa y sabor al abrir el modal o cambiar de producto
+  // Inicializa la cantidad, salsa, sabor y tamaño al abrir el modal o cambiar de producto
   useEffect(() => {
     setQuantity(product.stock > 0 ? 1 : 0);
-    if (product.category === 'Pastas') {
-      // Inicializa salsa
-      if (product.sauces && product.sauces.length > 0) {
-        setSelectedSauce(product.sauces[0]); // Selecciona la primera salsa por defecto
-      } else {
-        setSelectedSauce(null);
-      }
-      // Inicializa sabor
-      if (product.flavors && product.flavors.length > 0) { // NUEVO: Inicializar sabor
-        setSelectedFlavor(product.flavors[0]); // Selecciona el primer sabor por defecto
-      } else {
-        setSelectedFlavor(null);
-      }
+
+    // Inicializa salsa
+    if (product.category === 'Pastas' && product.sauces && product.sauces.length > 0) {
+      setSelectedSauce(product.sauces[0]); // Selecciona la primera salsa por defecto
     } else {
       setSelectedSauce(null); // Asegura que no haya salsa seleccionada si no es pasta
+    }
+
+    // Inicializa sabor
+    if (product.category === 'Pastas' && product.flavors && product.flavors.length > 0) {
+      setSelectedFlavor(product.flavors[0]); // Selecciona el primer sabor por defecto
+    } else {
       setSelectedFlavor(null); // Asegura que no haya sabor seleccionado si no es pasta
     }
+
+    // NUEVO: Inicializa tamaño
+    if (product.category === 'Papas Fritas' && product.sizes && product.sizes.length > 0) {
+      setSelectedSize(product.sizes[0]); // Selecciona el primer tamaño por defecto
+    } else {
+      setSelectedSize(null); // Asegura que no haya tamaño seleccionado si no es Papas Fritas
+    }
+
   }, [product]);
 
   // Inicializa el producto editado cuando el producto prop cambia
   useEffect(() => {
     setEditedProduct(product);
-    // Reinicia la salsa y sabor seleccionados al abrir el modal para un nuevo producto
+    // Reinicia la salsa, sabor y tamaño seleccionados al abrir el modal para un nuevo producto
     setSelectedSauce(null);
     setSelectedFlavor(null);
+    setSelectedSize(null); // NUEVO: Resetear selectedSize
   }, [product]);
 
   // Manejadores para la cantidad del producto
@@ -115,27 +134,34 @@ function ProductDetailsModal({
 
   // Manejador para añadir al carrito
   const handleAddToCartClick = useCallback(() => {
-    // Deshabilita si es pasta y falta salsa o sabor
+    // Validar si se requiere salsa, sabor o tamaño y si están seleccionados
     const requiresSauce = product.category === 'Pastas' && product.sauces && product.sauces.length > 0;
     const requiresFlavor = product.category === 'Pastas' && product.flavors && product.flavors.length > 0;
+    const requiresSize = product.category === 'Papas Fritas' && product.sizes && product.sizes.length > 0; // NUEVO: Validación para tamaño
 
     if (quantity > 0 && !isOutOfStock) {
       if (requiresSauce && !selectedSauce) {
         showNotification('Por favor, selecciona una salsa para este producto.', 'warning');
         return;
       }
-      if (requiresFlavor && !selectedFlavor) { // NUEVO: Validar selección de sabor
+      if (requiresFlavor && !selectedFlavor) {
         showNotification('Por favor, selecciona un sabor para este producto.', 'warning');
         return;
       }
+      // NUEVO: Validar selección de tamaño
+      if (requiresSize && !selectedSize) {
+        showNotification('Por favor, selecciona un tamaño para este producto.', 'warning');
+        return;
+      }
 
-      // Pasa el producto, la cantidad, la salsa seleccionada y el sabor seleccionado
-      onAddToCart({ ...product, selectedSauce: selectedSauce, selectedFlavor: selectedFlavor }, quantity); // PASA EL SABOR
+      // Pasa el producto, la cantidad, la salsa, el sabor y el tamaño seleccionados
+      onAddToCart({ ...product, selectedSauce: selectedSauce, selectedFlavor: selectedFlavor, selectedSize: selectedSize }, quantity); // PASA EL TAMAÑO
       onClose(); // Cierra el modal después de añadir al carrito
+      showNotification(`"${product.name}" (x${quantity}) añadido al carrito.`, 'success', 2000);
     } else {
       showNotification('No se puede añadir este producto al carrito.', 'error');
     }
-  }, [quantity, isOutOfStock, onAddToCart, product, onClose, showNotification, selectedSauce, selectedFlavor]); // Añadido selectedFlavor
+  }, [quantity, isOutOfStock, onAddToCart, product, onClose, showNotification, selectedSauce, selectedFlavor, selectedSize]); // Añadido selectedSize
 
   // Manejador para enviar una reseña
   const handleReviewSubmit = useCallback(async ({ rating, comment }) => {
@@ -202,7 +228,7 @@ function ProductDetailsModal({
     }));
   }, []);
 
-  // NUEVOS MANEJADORES PARA LA EDICIÓN DE SABORES EN MODO ADMIN
+  // MANEJADORES PARA LA EDICIÓN DE SABORES EN MODO ADMIN
   const handleAdminFlavorChange = useCallback((index, field, value) => {
     setEditedProduct(prev => {
       const newFlavors = [...(prev.flavors || [])]; // Asegura que flavors sea un array
@@ -227,7 +253,35 @@ function ProductDetailsModal({
       flavors: (prev.flavors || []).filter((_, i) => i !== index),
     }));
   }, []);
-  // FIN NUEVOS MANEJADORES PARA SABORES
+  // FIN MANEJADORES PARA SABORES
+
+  // NUEVO: Manejadores para la edición de tamaños en modo admin
+  const handleAdminSizeChange = useCallback((index, field, value) => {
+    setEditedProduct(prev => {
+      const newSizes = [...(prev.sizes || [])]; // Asegura que sizes sea un array
+      newSizes[index] = {
+        ...newSizes[index],
+        [field]: field === 'price' ? Number(value) : value,
+      };
+      return { ...prev, sizes: newSizes };
+    });
+  }, []);
+
+  const handleAddAdminSize = useCallback(() => {
+    setEditedProduct(prev => ({
+      ...prev,
+      sizes: [...(prev.sizes || []), { id: Date.now().toString() + Math.random().toString(36).substring(2, 9), name: '', price: 0 }],
+    }));
+  }, []);
+
+  const handleRemoveAdminSize = useCallback((index) => {
+    setEditedProduct(prev => ({
+      ...prev,
+      sizes: (prev.sizes || []).filter((_, i) => i !== index),
+    }));
+  }, []);
+  // FIN NUEVOS MANEJADORES PARA TAMAÑOS
+
 
   const handleSaveEditedProduct = useCallback(async () => {
     setIsSaving(true);
@@ -241,7 +295,8 @@ function ProductDetailsModal({
         stock: Number(editedProduct.stock),
         image: editedProduct.image,
         sauces: editedProduct.category === 'Pastas' ? (editedProduct.sauces || []) : [], // Guardar salsas solo si es Pastas
-        flavors: editedProduct.category === 'Pastas' ? (editedProduct.flavors || []) : [], // NUEVO: Guardar sabores solo si es Pastas
+        flavors: editedProduct.category === 'Pastas' ? (editedProduct.flavors || []) : [], // Guardar sabores solo si es Pastas
+        sizes: editedProduct.category === 'Papas Fritas' ? (editedProduct.sizes || []) : [], // NUEVO: Guardar tamaños solo si es Papas Fritas
       });
       showNotification('Producto actualizado con éxito (Admin).', 'success');
       setIsEditing(false); // Sale del modo edición
@@ -458,6 +513,46 @@ function ProductDetailsModal({
                       </button>
                     </div>
                   )}
+
+                  {/* NUEVO: Edición de Tamaños para Admin */}
+                  {editedProduct.category === 'Papas Fritas' && (
+                    <div className="mt-4 p-4 border border-gray-300 dark:border-gray-600 rounded-md">
+                      <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Editar Tamaños</h4>
+                      {(editedProduct.sizes || []).map((size, index) => (
+                        <div key={size.id || index} className="flex items-center gap-2 mb-2">
+                          <input
+                            type="text"
+                            value={size.name}
+                            onChange={(e) => handleAdminSizeChange(index, 'name', e.target.value)}
+                            placeholder="Nombre del tamaño (Ej: Chico, Grande)"
+                            className="flex-grow px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:text-white"
+                          />
+                          <input
+                            type="number"
+                            value={size.price}
+                            onChange={(e) => handleAdminSizeChange(index, 'price', e.target.value)}
+                            min="0"
+                            step="0.01"
+                            className="w-20 px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:text-white"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAdminSize(index)}
+                            className="p-1 bg-red-500 hover:bg-red-600 text-white rounded-full"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={handleAddAdminSize}
+                        className="mt-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center gap-1 text-sm"
+                      >
+                        <PlusCircle size={16} /> Añadir Tamaño
+                      </button>
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
@@ -539,7 +634,47 @@ function ProductDetailsModal({
                       </div>
                       {selectedSauce && !selectedSauce.isFree && selectedSauce.price > 0 && (
                         <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-                          Precio con salsa: ${Math.floor(productPrice + selectedSauce.price)}
+                          Precio con salsa: ${Math.floor(product.precio + selectedSauce.price)}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* NUEVO: Selección de Tamaños (para usuarios no-admin) */}
+                  {product.category === 'Papas Fritas' && product.sizes && product.sizes.length > 0 && (
+                    <div className="mb-4">
+                      <label htmlFor="size-select" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                        Selecciona un tamaño:
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {product.sizes.map(size => (
+                          <label
+                            key={size.id}
+                            className={`flex items-center px-3 py-1 rounded-full border cursor-pointer transition-all duration-200
+                              ${selectedSize?.id === size.id
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                                : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600'
+                              }`}
+                          >
+                            <input
+                              type="radio"
+                              name={`size-${product.id}`}
+                              value={size.id}
+                              checked={selectedSize?.id === size.id}
+                              onChange={(e) => {
+                                const sizeId = e.target.value;
+                                const size = product.sizes.find(s => s.id === sizeId);
+                                setSelectedSize(size || null);
+                              }}
+                              className="mr-2 hidden"
+                            />
+                            {size.name} {size.price > 0 ? `(+$${Math.floor(size.price)})` : ''}
+                          </label>
+                        ))}
+                      </div>
+                      {selectedSize && selectedSize.price > 0 && (
+                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
+                          Precio con tamaño: ${Math.floor(product.precio + selectedSize.price)}
                         </p>
                       )}
                     </div>
@@ -585,13 +720,15 @@ function ProductDetailsModal({
                       isOutOfStock ||
                       quantity === 0 ||
                       (product.category === 'Pastas' && product.sauces && product.sauces.length > 0 && !selectedSauce) || // Requiere salsa si hay salsas
-                      (product.category === 'Pastas' && product.flavors && product.flavors.length > 0 && !selectedFlavor) // NUEVO: Requiere sabor si hay sabores
+                      (product.category === 'Pastas' && product.flavors && product.flavors.length > 0 && !selectedFlavor) || // Requiere sabor si hay sabores
+                      (product.category === 'Papas Fritas' && product.sizes && product.sizes.length > 0 && !selectedSize) // NUEVO: Requiere tamaño si hay tamaños
                     }
                     className={`w-full font-bold py-3 px-6 rounded-xl text-lg flex items-center justify-center gap-2 shadow-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 ${
-                      (isOutOfStock || quantity === 0 || (product.category === 'Pastas' && product.sauces && product.sauces.length > 0 && !selectedSauce) || (product.category === 'Pastas' && product.flavors && product.flavors.length > 0 && !selectedFlavor))
+                      (isOutOfStock || quantity === 0 || (product.category === 'Pastas' && product.sauces && product.sauces.length > 0 && !selectedSauce) || (product.category === 'Pastas' && product.flavors && product.flavors.length > 0 && !selectedFlavor) || (product.category === 'Papas Fritas' && product.sizes && product.sizes.length > 0 && !selectedSize))
                         ? 'bg-gray-400 dark:bg-gray-600 text-white cursor-not-allowed'
                         : 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-300'
                     }`}
+                    aria-label={isOutOfStock ? "Producto agotado" : "Añadir al Carrito"}
                   >
                     <ShoppingCart size={24} /> {isOutOfStock ? 'Agotado' : 'Añadir al Carrito'}
                   </button>
@@ -607,6 +744,7 @@ function ProductDetailsModal({
                     ? 'bg-red-500 text-white border-red-500 hover:bg-red-600'
                     : 'bg-white text-red-500 border-red-500 hover:bg-red-50 dark:bg-gray-700 dark:text-red-400 dark:border-red-400 dark:hover:bg-gray-600'
                 }`}
+                aria-label={isFavorite ? 'Quitar de Favoritos' : 'Añadir a Favoritos'}
               >
                 <Heart size={20} className={isFavorite ? 'fill-current' : ''} />
                 {isFavorite ? 'En Favoritos' : 'Añadir a Favoritos'}
@@ -631,7 +769,13 @@ function ProductDetailsModal({
           )}
 
           {/* Formulario de Reseñas */}
-          <ReviewForm onSubmit={handleReviewSubmit} />
+          {userId ? ( // Solo permite dejar reseña si hay un usuario logueado
+            <ReviewForm onSubmit={handleReviewSubmit} />
+          ) : (
+            <p className="text-center text-gray-600 dark:text-gray-300 mt-4">
+              Inicia sesión para dejar una reseña.
+            </p>
+          )}
         </div>
       </div>
     </div>

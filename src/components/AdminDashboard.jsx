@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, getDocs, writeBatch, where, setDoc } from 'firebase/firestore';
 import ProductForm from './ProductForm';
-// Importaciones de iconos de Lucide React: Añadidos AlertTriangle, BadgeAlert, CheckCheck, Loader2, List, ImageOff, Search
-import { Edit, Trash2, PlusCircle, ShoppingBag, Box, LogOut, Filter, Home, MessageSquare, BarChart2, DollarSign, ListOrdered, TrendingUp, Eraser, UploadCloud, AlertTriangle, BadgeAlert, Star, Loader2, CheckCheck, List, ImageOff, Search } from 'lucide-react';
+// Importaciones de iconos de Lucide React: Aseguramos que todos los iconos usados en este archivo (incluyendo los de los componentes anidados) estén aquí.
+import {
+  Edit, Trash2, PlusCircle, ShoppingBag, Box, LogOut, Filter, Home, MessageSquare, BarChart2,
+  DollarSign, ListOrdered, TrendingUp, Eraser, UploadCloud, AlertTriangle, BadgeAlert, Star,
+  Loader2, CheckCheck, List, ImageOff, Search, Tags, XCircle, Save // XCircle y Save son cruciales para CategoryManagementModal
+} from 'lucide-react';
 
 
 // Componente para el modal de confirmación genérico
@@ -104,18 +108,175 @@ const JsonImportModal = ({ onClose, onImport, showNotification, isImporting }) =
   );
 };
 
+// Componente para el modal de gestión de categorías
+const CategoryManagementModal = ({ isOpen, onClose, categories, onSaveCategory, onDeleteCategory, showNotification }) => {
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [editingCategoryId, setEditingCategoryId] = useState(null);
+  const [editingCategoryName, setEditingCategoryName] = useState('');
 
-const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, hasShownAdminWelcome, setHasShownAdminWelcome, firebaseConfig }) => { // firebaseConfig es necesario aquí
-  const [activeTab, setActiveTab] = useState('products'); // 'products', 'orders', 'reviews', 'metrics'
+  useEffect(() => {
+    if (!isOpen) {
+      setNewCategoryName('');
+      setEditingCategoryId(null);
+      setEditingCategoryName('');
+    }
+  }, [isOpen]);
+
+  const handleAddCategory = async () => {
+    if (newCategoryName.trim() === '') {
+      showNotification('El nombre de la categoría no puede estar vacío.', 'warning');
+      return;
+    }
+    if (categories.some(cat => cat.name.toLowerCase() === newCategoryName.trim().toLowerCase())) {
+      showNotification('Ya existe una categoría con ese nombre.', 'warning');
+      return;
+    }
+    try {
+      await onSaveCategory({ name: newCategoryName.trim() });
+      showNotification('Categoría añadida con éxito.', 'success');
+      setNewCategoryName('');
+    } catch (error) {
+      showNotification(`Error al añadir categoría: ${error.message}`, 'error');
+    }
+  };
+
+  const handleEditClick = (category) => {
+    setEditingCategoryId(category.id);
+    setEditingCategoryName(category.name);
+  };
+
+  const handleSaveEdit = async (categoryId) => {
+    if (editingCategoryName.trim() === '') {
+      showNotification('El nombre de la categoría no puede estar vacío.', 'warning');
+      return;
+    }
+    if (categories.some(cat => cat.id !== categoryId && cat.name.toLowerCase() === editingCategoryName.trim().toLowerCase())) {
+      showNotification('Ya existe otra categoría con ese nombre.', 'warning');
+      return;
+    }
+    try {
+      await onSaveCategory({ id: categoryId, name: editingCategoryName.trim() });
+      showNotification('Categoría actualizada con éxito.', 'success');
+      setEditingCategoryId(null);
+      setEditingCategoryName('');
+    } catch (error) {
+      showNotification(`Error al actualizar categoría: ${error.message}`, 'error');
+    }
+  };
+
+  const handleDeleteClick = async (categoryId) => {
+    // Aquí podrías añadir un modal de confirmación si lo deseas, similar a la eliminación de productos
+    if (window.confirm('¿Estás seguro de que quieres eliminar esta categoría? Los productos de esta categoría no se eliminarán, pero su categoría quedará sin definir.')) {
+      try {
+        await onDeleteCategory(categoryId);
+        showNotification('Categoría eliminada con éxito.', 'info');
+      } catch (error) {
+        showNotification(`Error al eliminar categoría: ${error.message}`, 'error');
+      }
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md relative">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300 rounded-full p-1"
+          aria-label="Cerrar gestión de categorías"
+        >
+          <XCircle size={24} />
+        </button>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Gestión de Categorías</h2>
+
+        <div className="mb-6">
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">Añadir Nueva Categoría</h3>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              placeholder="Nombre de la nueva categoría"
+              className="flex-grow px-4 py-2 rounded-md bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-purple-500 focus:border-purple-500"
+            />
+            <button
+              onClick={handleAddCategory}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md shadow-sm transition-colors duration-200"
+            >
+              Añadir
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">Categorías Existentes</h3>
+          {categories.length === 0 ? (
+            <p className="text-gray-600 dark:text-gray-400">No hay categorías definidas.</p>
+          ) : (
+            <ul className="space-y-3">
+              {categories.map(category => (
+                <li key={category.id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-3 rounded-md shadow-sm">
+                  {editingCategoryId === category.id ? (
+                    <input
+                      type="text"
+                      value={editingCategoryName}
+                      onChange={(e) => setEditingCategoryName(e.target.value)}
+                      className="flex-grow px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-600 border border-gray-300 dark:border-gray-500 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  ) : (
+                    <span className="text-gray-900 dark:text-gray-100 text-lg">{category.name}</span>
+                  )}
+                  <div className="flex space-x-2 ml-4">
+                    {editingCategoryId === category.id ? (
+                      <button
+                        onClick={() => handleSaveEdit(category.id)}
+                        className="p-2 bg-green-500 hover:bg-green-600 text-white rounded-full"
+                        aria-label="Guardar cambios de categoría"
+                      >
+                        <Save size={18} />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleEditClick(category)}
+                        className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full"
+                        aria-label="Editar categoría"
+                      >
+                        <Edit size={18} />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDeleteClick(category.id)}
+                      className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-full"
+                      aria-label="Eliminar categoría"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, hasShownAdminWelcome, setHasShownAdminWelcome, firebaseConfig }) => {
+  const [activeTab, setActiveTab] = useState('products'); // 'products', 'orders', 'reviews', 'metrics', 'categories'
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [reviews, setReviews] = useState([]);
+  const [categories, setCategories] = useState([]); // Estado para categorías
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isCategoryManagementModalOpen, setIsCategoryManagementModalOpen] = useState(false); // Estado para modal de categorías
 
   // Estados para los modales de confirmación
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -133,7 +294,7 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
   // Estado para productos destacados manualmente
   const [manualFeaturedProductIds, setManualFeaturedProductIds] = useState([]);
 
-  // NUEVOS ESTADOS PARA FILTROS DE PRODUCTOS
+  // Estados para filtros de productos
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [productCategoryFilter, setProductCategoryFilter] = useState('all');
 
@@ -164,6 +325,21 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
     });
     return () => unsubscribe();
   }, [db, appId, showNotification]);
+
+  // Cargar categorías
+  useEffect(() => {
+    if (!db) return;
+    const categoriesColRef = collection(db, `artifacts/${appId}/public/data/categories`);
+    const unsubscribe = onSnapshot(categoriesColRef, (snapshot) => {
+      const categoriesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setCategories(categoriesData);
+    }, (err) => {
+      console.error("Error al cargar categorías:", err);
+      showNotification("Error al cargar categorías.", "error");
+    });
+    return () => unsubscribe();
+  }, [db, appId, showNotification]);
+
 
   // Cargar órdenes
   useEffect(() => {
@@ -225,7 +401,7 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
         setManualFeaturedProductIds([]);
       }
     }, (err) => {
-      console.error("Error al cargar IDs de productos destacados manualmente:", err);
+      console.error("Error al cargar IDs de productos destacados manuales:", err);
     });
     return unsubscribe;
   }, [db, appId]);
@@ -276,6 +452,37 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
     });
     setIsConfirmModalOpen(true);
   }, [db, appId, showNotification]);
+
+  // CRUD de Categorías
+  const handleSaveCategory = useCallback(async (categoryData) => {
+    try {
+      const categoriesColRef = collection(db, `artifacts/${appId}/public/data/categories`);
+      if (categoryData.id) {
+        // Actualizar categoría existente
+        const categoryRef = doc(categoriesColRef, categoryData.id);
+        await updateDoc(categoryRef, { name: categoryData.name });
+      } else {
+        // Añadir nueva categoría
+        await addDoc(categoriesColRef, { name: categoryData.name });
+      }
+    } catch (e) {
+      console.error("Error al guardar categoría:", e);
+      throw e; // Relanza el error para que el modal lo maneje
+    }
+  }, [db, appId]);
+
+  const handleDeleteCategory = useCallback(async (categoryId) => {
+    try {
+      const categoryRef = doc(db, `artifacts/${appId}/public/data/categories`, categoryId);
+      await deleteDoc(categoryRef);
+      // Opcional: Aquí podrías querer actualizar los productos que tenían esta categoría a 'Sin Categoría' o similar
+      // Por simplicidad, no lo hacemos automáticamente aquí, pero es una consideración importante.
+    } catch (e) {
+      console.error("Error al eliminar categoría:", e);
+      throw e; // Relanza el error para que el modal lo maneje
+    }
+  }, [db, appId]);
+
 
   // CRUD de Órdenes
   const handleUpdateOrderStatus = useCallback(async (orderId, newStatus) => {
@@ -361,10 +568,17 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
                 isFree: s.isFree || false,
               }))
             : [],
-          flavors: productData.category === 'Pastas' && Array.isArray(productData.flavors) // AÑADIDO: Importar sabores
+          flavors: productData.category === 'Pastas' && Array.isArray(productData.flavors)
             ? productData.flavors.map(f => ({
                 id: f.id || Date.now().toString() + Math.random().toString(36).substring(2, 9),
                 name: f.name || '',
+              }))
+            : [],
+          sizes: productData.category === 'Papas Fritas' && Array.isArray(productData.sizes)
+            ? productData.sizes.map(s => ({
+                id: s.id || Date.now().toString() + Math.random().toString(36).substring(2, 9),
+                name: s.name || '',
+                price: Number(s.price) || 0,
               }))
             : [],
         };
@@ -519,6 +733,15 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
                   <BarChart2 size={20} className="mr-3" /> Métricas
                 </button>
               </li>
+              {/* Botón para la gestión de categorías */}
+              <li className="mb-3">
+                <button
+                  onClick={() => setIsCategoryManagementModalOpen(true)} // Abre el modal de categorías
+                  className="w-full text-left flex items-center p-3 rounded-lg transition-colors duration-200 text-gray-300 hover:bg-gray-700 hover:text-white"
+                >
+                  <Tags size={20} className="mr-3" /> Gestión de Categorías
+                </button>
+              </li>
             </ul>
           </nav>
         </div>
@@ -559,7 +782,7 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
               </button>
             </div>
 
-            {/* NUEVOS FILTROS DE PRODUCTOS */}
+            {/* Filtros de productos */}
             <div className="flex flex-col sm:flex-row gap-4 items-center mb-6">
                 <div className="relative w-full sm:w-1/2">
                     <Search size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -577,13 +800,9 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
                     className="px-4 py-2 rounded-md bg-gray-800 border border-gray-700 text-white focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 w-full sm:w-auto"
                 >
                     <option value="all">Todas las Categorías</option>
-                    <option value="Pizzas">Pizzas</option>
-                    <option value="Empanadas">Empanadas</option>
-                    <option value="Pastas">Pastas</option>
-                    <option value="Bebidas">Bebidas</option>
-                    <option value="Postres">Postres</option>
-                    <option value="Combos">Combos</option>
-                    <option value="Otros">Otros</option>
+                    {categories.map(cat => ( // Renderiza categorías dinámicamente
+                      <option key={cat.id} value={cat.name}>{cat.name}</option>
+                    ))}
                 </select>
             </div>
 
@@ -597,11 +816,20 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
                     <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                         <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-200">
                             <tr>
-                                <th scope="col" className="px-6 py-3">Imagen</th><th scope="col" className="px-6 py-3">Nombre</th><th scope="col" className="px-6 py-3">Categoría</th><th scope="col" className="px-6 py-3">Precio</th><th scope="col" className="px-6 py-3">Stock</th><th scope="col" className="px-6 py-3 text-center">Salsas</th><th scope="col" className="px-6 py-3 text-center">Sabores</th><th scope="col" className="px-6 py-3 text-center">Destacado Manual</th><th scope="col" className="px-6 py-3 text-center">Acciones</th>
+                                <th scope="col" className="px-6 py-3">Imagen</th>
+                                <th scope="col" className="px-6 py-3">Nombre</th>
+                                <th scope="col" className="px-6 py-3">Categoría</th>
+                                <th scope="col" className="px-6 py-3">Precio</th>
+                                <th scope="col" className="px-6 py-3">Stock</th>
+                                <th scope="col" className="px-6 py-3 text-center">Salsas</th>
+                                <th scope="col" className="px-6 py-3 text-center">Sabores</th>
+                                <th scope="col" className="px-6 py-3 text-center">Tamaños</th>
+                                <th scope="col" className="px-6 py-3 text-center">Destacado Manual</th>
+                                <th scope="col" className="px-6 py-3 text-center">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredProducts.map((product) => { // Usar filteredProducts aquí
+                            {filteredProducts.map((product) => {
                                 const isManuallyFeatured = manualFeaturedProductIds.includes(product.id);
                                 return (
                                     <tr key={product.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
@@ -613,19 +841,33 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
                                                     <ImageOff size={24} />
                                                 </div>
                                             )}
-                                        </td><td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-gray-100">{product.name}</td><td className="px-6 py-4 text-gray-700 dark:text-gray-300">{product.category || 'N/A'}</td><td className="px-6 py-4 text-gray-700 dark:text-gray-300">${Math.floor(product.precio || 0)}</td><td className="px-6 py-4 text-gray-700 dark:text-gray-300">{product.stock}</td><td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 text-center">
+                                        </td>
+                                        <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-gray-100">{product.name}</td>
+                                        <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{product.category || 'N/A'}</td>
+                                        <td className="px-6 py-4 text-gray-700 dark:text-gray-300">${Math.floor(product.precio || 0)}</td>
+                                        <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{product.stock}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 text-center">
                                             {product.category === 'Pastas' && product.sauces && product.sauces.length > 0 ? (
                                                 <List size={20} className="inline-block text-blue-500" title="Tiene salsas" />
                                             ) : (
                                                 '-'
                                             )}
-                                        </td><td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 text-center">
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 text-center">
                                             {product.category === 'Pastas' && product.flavors && product.flavors.length > 0 ? (
                                                 <List size={20} className="inline-block text-purple-500" title="Tiene sabores" />
                                             ) : (
                                                 '-'
                                             )}
-                                        </td><td className="px-6 py-4 whitespace-nowrap text-center">
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 text-center">
+                                            {product.category === 'Papas Fritas' && product.sizes && product.sizes.length > 0 ? (
+                                                <List size={20} className="inline-block text-orange-500" title="Tiene tamaños" />
+                                            ) : (
+                                                '-'
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-center whitespace-nowrap">
                                                 <button
                                                     onClick={() => handleToggleManualFeatured(product.id, isManuallyFeatured)}
                                                     className={`p-2 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2
@@ -636,7 +878,8 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
                                                 >
                                                     <Star size={20} className={isManuallyFeatured ? "fill-current" : ""} />
                                                 </button>
-                                            </td><td className="px-6 py-4 text-center whitespace-nowrap">
+                                            </td>
+                                        <td className="px-6 py-4 text-center whitespace-nowrap">
                                             <button
                                                 onClick={() => handleEditProduct(product)}
                                                 className="font-medium text-blue-600 dark:text-blue-400 hover:underline mr-3"
@@ -745,6 +988,102 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
           </div>
         )}
 
+        {/* Gestión de Reseñas */}
+        {activeTab === 'reviews' && (
+          <div>
+            <h2 className="text-3xl font-bold text-gray-100 mb-6">Gestión de Reseñas</h2>
+            <div className="flex flex-col sm:flex-row gap-4 items-center mb-6">
+                <select
+                    value={reviewFilterStatus}
+                    onChange={(e) => setReviewFilterStatus(e.target.value)}
+                    className="px-4 py-2 rounded-md bg-gray-800 border border-gray-700 text-white focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 w-full sm:w-auto"
+                >
+                    <option value="all">Todos los Estados</option>
+                    <option value="pending">Pendientes</option>
+                    <option value="approved">Aprobadas</option>
+                </select>
+                <select
+                    value={reviewFilterRating}
+                    onChange={(e) => setReviewFilterRating(e.target.value)}
+                    className="px-4 py-2 rounded-md bg-gray-800 border border-gray-700 text-white focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 w-full sm:w-auto"
+                >
+                    <option value="all">Todas las Calificaciones</option>
+                    {[1, 2, 3, 4, 5].map(rating => (
+                        <option key={rating} value={rating}>{rating} Estrella{rating > 1 ? 's' : ''}</option>
+                    ))}
+                </select>
+            </div>
+
+            {reviews.length === 0 && (
+                <p className="text-center text-gray-400 mt-10">No hay reseñas para mostrar con los filtros actuales.</p>
+            )}
+
+            {reviews.length > 0 && (
+                <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
+                    <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-200">
+                            <tr>
+                                <th scope="col" className="px-6 py-3">Producto ID</th>
+                                <th scope="col" className="px-6 py-3">Usuario ID</th>
+                                <th scope="col" className="px-6 py-3">Calificación</th>
+                                <th scope="col" className="px-6 py-3">Comentario</th>
+                                <th scope="col" className="px-6 py-3">Fecha</th>
+                                <th scope="col" className="px-6 py-3">Estado</th>
+                                <th scope="col" className="px-6 py-3 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {reviews.map((review) => (
+                                <tr key={review.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                    <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-gray-100">
+                                        {review.productId.substring(0, 8)}...
+                                    </td>
+                                    <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
+                                        {review.userId ? `${review.userId.substring(0, 8)}...` : 'Anónimo'}
+                                    </td>
+                                    <td className="px-6 py-4 text-yellow-500 flex items-center">
+                                        {review.rating} <Star size={16} className="fill-current ml-1" />
+                                    </td>
+                                    <td className="px-6 py-4 text-gray-700 dark:text-gray-300 max-w-xs overflow-hidden text-ellipsis">
+                                        {review.comment || 'Sin comentario'}
+                                    </td>
+                                    <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
+                                        {review.timestamp ? new Date(review.timestamp.toDate()).toLocaleDateString() : 'N/A'}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className={`px-2 py-1 rounded-full text-xs font-semibold
+                                            ${review.approved ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100'}`}
+                                        >
+                                            {review.approved ? 'Aprobada' : 'Pendiente'}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-center whitespace-nowrap">
+                                        {!review.approved && (
+                                            <button
+                                                onClick={() => handleApproveReview(review.id)}
+                                                className="font-medium text-green-600 dark:text-green-400 hover:underline mr-3"
+                                                aria-label={`Aprobar reseña de ${review.productId.substring(0, 5)}`}
+                                            >
+                                                <CheckCheck size={20} className="inline-block" />
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => handleRejectReview(review.id)}
+                                            className="font-medium text-red-600 dark:text-red-400 hover:underline"
+                                            aria-label={`Rechazar reseña de ${review.productId.substring(0, 5)}`}
+                                        >
+                                            <Trash2 size={20} className="inline-block" />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+          </div>
+        )}
+
         {/* Métricas */}
         {activeTab === 'metrics' && (
           <div>
@@ -813,8 +1152,9 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
           onClose={() => setIsProductFormOpen(false)}
           onSave={handleSaveProduct}
           showNotification={showNotification}
-          firebaseConfig={firebaseConfig} // AÑADIDO: Pasando firebaseConfig
-          appId={appId} // appId ya está disponible
+          firebaseConfig={firebaseConfig}
+          appId={appId}
+          categories={categories} // PASANDO LAS CATEGORÍAS AL FORMULARIO DE PRODUCTOS
         />
       )}
 
@@ -824,6 +1164,18 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
           onImport={handleImportProducts}
           showNotification={showNotification}
           isImporting={isImporting}
+        />
+      )}
+
+      {/* Modal de Gestión de Categorías */}
+      {isCategoryManagementModalOpen && (
+        <CategoryManagementModal
+          isOpen={isCategoryManagementModalOpen}
+          onClose={() => setIsCategoryManagementModalOpen(false)}
+          categories={categories}
+          onSaveCategory={handleSaveCategory}
+          onDeleteCategory={handleDeleteCategory}
+          showNotification={showNotification}
         />
       )}
 

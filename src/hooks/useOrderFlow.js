@@ -54,8 +54,8 @@ export const useOrderFlow = (
   const handleViewSummaryFromCart = useCallback((items) => {
     setIsCartModalOpen(false);
     const totalForSummary = items.reduce((sum, item) => {
-      // Suma el precio base del producto más el precio de la salsa y el sabor si existen
-      const itemPrice = item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0); // AHORA INCLUYE SABOR
+      // Suma el precio base del producto más el precio de la salsa, el sabor y el TAMAÑO si existen
+      const itemPrice = item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0) + (item.selectedSize?.price || 0); // AHORA INCLUYE TAMAÑO
       return sum + itemPrice * item.quantity;
     }, 0);
     setCurrentOrder({
@@ -66,7 +66,8 @@ export const useOrderFlow = (
         precio: item.precio,
         imageUrl: item.image || item.imageUrl,
         selectedSauce: item.selectedSauce || null,
-        selectedFlavor: item.selectedFlavor || null, // AHORA INCLUYE SABOR
+        selectedFlavor: item.selectedFlavor || null,
+        selectedSize: item.selectedSize || null, // AHORA INCLUYE TAMAÑO
       })),
       total: totalForSummary,
     });
@@ -115,9 +116,9 @@ export const useOrderFlow = (
 
       const finalOrderTime = (orderType === 'immediate' || !orderTime) ? new Date().toISOString() : orderTime;
       
-      // CALCULAR EL TOTAL DEL PEDIDO INCLUYENDO SALSAS Y SABORES
+      // CALCULAR EL TOTAL DEL PEDIDO INCLUYENDO SALSAS, SABORES Y TAMAÑOS
       const totalCalculated = cartItems.reduce((sum, item) => {
-        const itemPriceWithExtras = item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0); // AHORA INCLUYE SABOR
+        const itemPriceWithExtras = item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0) + (item.selectedSize?.price || 0); // AHORA INCLUYE TAMAÑO
         return sum + itemPriceWithExtras * item.quantity;
       }, 0);
       const totalForDisplay = Math.floor(totalCalculated); // Redondeo final para mostrar
@@ -167,17 +168,25 @@ export const useOrderFlow = (
       const orderDetailsForWhatsapp = cartItems.map(item => {
         const itemBasePrice = item.precio;
         const saucePrice = item.selectedSauce?.price || 0;
-        const flavorPrice = item.selectedFlavor?.price || 0; // OBTENER PRECIO DEL SABOR
-        const itemTotalPrice = (itemBasePrice + saucePrice + flavorPrice) * item.quantity; // CALCULAR TOTAL CON SABOR
+        const flavorPrice = item.selectedFlavor?.price || 0;
+        const sizePrice = item.selectedSize?.price || 0; // OBTENER PRECIO DEL TAMAÑO
+        const itemTotalPrice = (itemBasePrice + saucePrice + flavorPrice + sizePrice) * item.quantity; // CALCULAR TOTAL CON TAMAÑO
 
         let detail = `- ${item.quantity}x ${item.name}`;
-        if (item.selectedFlavor) { // AÑADIR DETALLE DEL SABOR
+        if (item.selectedFlavor) {
             detail += ` (Sabor: ${item.selectedFlavor.name})`;
         }
         if (item.selectedSauce) {
           detail += ` (Salsa: ${item.selectedSauce.name}`;
           if (!item.selectedSauce.isFree && item.selectedSauce.price > 0) {
             detail += ` +$${Math.floor(item.selectedSauce.price)}`; // Redondeo aquí también
+          }
+          detail += `)`;
+        }
+        if (item.selectedSize) { // NUEVO: Añadir detalle del tamaño
+          detail += ` (Tamaño: ${item.selectedSize.name}`;
+          if (item.selectedSize.price > 0) {
+            detail += ` +$${Math.floor(item.selectedSize.price)}`;
           }
           detail += `)`;
         }
@@ -235,7 +244,8 @@ ${notes ? `\n*Notas del Cliente:* ${notes}` : ''}
             precio: item.precio,
             imageUrl: item.image || item.imageUrl,
             selectedSauce: item.selectedSauce || null,
-            selectedFlavor: item.selectedFlavor || null, // AHORA INCLUYE SABOR EN EL OBJETO DE LA ORDEN
+            selectedFlavor: item.selectedFlavor || null,
+            selectedSize: item.selectedSize || null, // AHORA INCLUYE TAMAÑO EN EL OBJETO DE LA ORDEN
           })),
           total: totalCalculated,
           customerInfo: { name, address, phone },
@@ -289,7 +299,7 @@ ${notes ? `\n*Notas del Cliente:* ${notes}` : ''}
       
       handleClearCart(); // Limpiar el carrito después de enviar el pedido
     },
-    [cartItems, showNotification, db, userId, handleClearCart, localProjectId, actualAppIdForFirestore]
+    [cartItems, showNotification, db, userId, handleClearCart, localProjectId, actualAppIdForFirestore, existingOrdersCount] // Añadido existingOrdersCount a las dependencias
   );
 
   return {

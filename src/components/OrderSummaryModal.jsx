@@ -8,8 +8,8 @@ function OrderSummaryModal({ order, onClose, onBack, onContinue, showNotificatio
 
   const total = useMemo(() => {
     return Math.floor(itemsInOrder.reduce((sum, item) => {
-      // Suma el precio base del producto más el precio de la salsa y el sabor si existen
-      const itemPrice = item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0); // NUEVO: Sumar precio del sabor
+      // Suma el precio base del producto más el precio de la salsa, el sabor y el tamaño si existen
+      const itemPrice = item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0) + (item.selectedSize?.price || 0); // NUEVO: Sumar precio del tamaño
       return sum + itemPrice * item.quantity;
     }, 0));
   }, [itemsInOrder]);
@@ -90,11 +90,11 @@ function OrderSummaryModal({ order, onClose, onBack, onContinue, showNotificatio
           <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">Productos</h3>
           <ul className="space-y-2">
             {itemsInOrder.map((item, index) => (
-              // Añadido item.selectedFlavor?.id a la key para unicidad
-              <li key={item.id + (item.selectedSauce?.id || '') + (item.selectedFlavor?.id || '') + index} className="flex justify-between items-center text-gray-700 dark:text-gray-300">
+              // Añadido item.selectedFlavor?.id y item.selectedSize?.id a la key para unicidad
+              <li key={item.id + (item.selectedSauce?.id || '') + (item.selectedFlavor?.id || '') + (item.selectedSize?.id || '') + index} className="flex justify-between items-center text-gray-700 dark:text-gray-300">
                 <div>
                   {item.name} x {item.quantity}
-                  {item.selectedFlavor && ( // NUEVO: Muestra el sabor si existe
+                  {item.selectedFlavor && ( // Muestra el sabor si existe
                     <span className="text-sm text-gray-600 dark:text-gray-400 block sm:inline-block sm:ml-2">
                       (Sabor: {item.selectedFlavor.name})
                     </span>
@@ -106,8 +106,15 @@ function OrderSummaryModal({ order, onClose, onBack, onContinue, showNotificatio
                       )
                     </span>
                   )}
+                  {item.selectedSize && ( // NUEVO: Muestra el tamaño si existe
+                    <span className="text-sm text-gray-600 dark:text-gray-400 block sm:inline-block sm:ml-2">
+                      (Tamaño: {item.selectedSize.name}
+                      {item.selectedSize.price > 0 && ` +$${item.selectedSize.price}`}
+                      )
+                    </span>
+                  )}
                 </div>
-                <span className="font-semibold">${(item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0)) * item.quantity}</span> {/* NUEVO: Sumar precio del sabor */}
+                <span className="font-semibold">${(item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0) + (item.selectedSize?.price || 0)) * item.quantity}</span> {/* NUEVO: Sumar precio del tamaño */}
               </li>
             ))}
           </ul>
