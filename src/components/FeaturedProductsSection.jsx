@@ -25,8 +25,8 @@ const FeaturedProductsSection = ({
     // Contenedor principal de la sección de destacados
     // Con un fondo degradado sutil (ahora en tonos mostaza/ámbar), padding generoso,
     // bordes redondeados y una sombra marcada.
-    // === CAMBIO AQUÍ: Degradado de fondo a tonos ámbar/mostaza ===
-    <div className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900 dark:to-amber-800 p-8 sm:p-10 lg:p-12 rounded-3xl shadow-2xl border border-amber-200 dark:border-amber-700">
+    // === CAMBIO AQUÍ: Asegurar overflow-hidden en el contenedor principal de la sección ===
+    <div className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900 dark:to-amber-800 p-8 sm:p-10 lg:p-12 rounded-3xl shadow-2xl border border-amber-200 dark:border-amber-700 overflow-hidden">
       {/* Título de la sección, prominente, con efecto de sombra de texto */}
       <h2 className="text-5xl sm:text-6xl font-extrabold text-center mb-12 text-amber-700 dark:text-amber-400 drop-shadow-lg flex items-center justify-center gap-4">
         <Star size={48} className="text-amber-500 fill-current animate-spin-slow" /> {/* Estrella girando */}
@@ -38,9 +38,10 @@ const FeaturedProductsSection = ({
         {featuredProducts.map((producto) => (
           // Cada tarjeta de producto en el carrusel
           // Con un ancho mínimo para asegurar que se muestren varias tarjetas y un efecto hover de escala.
+          // === CAMBIO AQUÍ: Asegurar rounded-2xl y overflow-hidden en el contenedor de cada ProductCard ===
           <div
             key={producto.id}
-            className="min-w-[280px] sm:min-w-[320px] lg:min-w-[300px] xl:min-w-[280px] snap-start transition-transform duration-300 hover:scale-[1.02] transform hover:shadow-xl"
+            className="min-w-[280px] sm:min-w-[320px] lg:min-w-[300px] xl:min-w-[280px] snap-start transition-transform duration-300 hover:scale-[1.02] transform hover:shadow-xl rounded-2xl overflow-hidden p-4"
           >
             <ProductCard
               producto={producto}

@@ -41,7 +41,7 @@ const PowaContactForm = ({ onClose, showNotification }) => {
             // 3. Create a new form.
             // 4. They will give you an endpoint URL like 'https://formspree.io/f/xxxxxxxx'.
             // 5. Copy only the 'xxxxxxxx' part and paste it here.
-            const formspreeEndpoint = 'https://formspree.io/f/xpwrlkjq'; 
+            const formspreeEndpoint = 'https://formspree.io/f/xpwrlkjq';
             // If you do not replace 'your_form_id', the form will NOT work.
 
             const response = await fetch(formspreeEndpoint, {
@@ -73,7 +73,7 @@ const PowaContactForm = ({ onClose, showNotification }) => {
     return (
         <div className="fixed inset-0 bg-gradient-to-br from-purple-800 to-indigo-900 bg-opacity-90 flex items-center justify-center p-4 sm:p-6 md:p-8 lg:p-12 xl:p-20 z-50">
             <div className="relative bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-lg lg:max-w-xl xl:max-w-3xl transform transition-all duration-300 scale-95 md:scale-100 animate-slide-in-up border-4 border-transparent hover:border-purple-500 dark:hover:border-indigo-400 max-h-[90vh] overflow-y-auto">
-                
+
                 {/* Close Button */}
                 <button
                     onClick={onClose}
@@ -112,6 +112,7 @@ const PowaContactForm = ({ onClose, showNotification }) => {
                                 required
                                 disabled={submissionStatus === 'sending'}
                                 aria-label="Nombre Completo"
+                                autoComplete="name" // Añadido autocomplete
                             />
                         </div>
 
@@ -129,6 +130,7 @@ const PowaContactForm = ({ onClose, showNotification }) => {
                                 required
                                 disabled={submissionStatus === 'sending'}
                                 aria-label="Correo Electrónico"
+                                autoComplete="email" // Añadido autocomplete
                             />
                         </div>
 
@@ -144,6 +146,7 @@ const PowaContactForm = ({ onClose, showNotification }) => {
                                 className="w-full p-3 sm:p-4 lg:p-5 border border-gray-300 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all shadow-sm focus:shadow-md text-base lg:text-lg"
                                 disabled={submissionStatus === 'sending'}
                                 aria-label="Tipo de Proyecto"
+                                autoComplete="off" // Añadido autocomplete
                             >
                                 <option value="">Selecciona una opción</option>
                                 <option value="eCommerce">Tienda Online (E-commerce)</option>
@@ -169,6 +172,7 @@ const PowaContactForm = ({ onClose, showNotification }) => {
                                 required
                                 disabled={submissionStatus === 'sending'}
                                 aria-label="Describe tu Idea o Proyecto"
+                                autoComplete="off" // Añadido autocomplete
                             ></textarea>
                         </div>
 
@@ -194,7 +198,7 @@ const PowaContactForm = ({ onClose, showNotification }) => {
                                 </>
                             )}
                         </button>
-                        
+
                         {submissionStatus === 'success' && (
                             <div className="text-center text-green-600 dark:text-green-400 text-base sm:text-lg lg:text-xl font-semibold mt-4 flex items-center justify-center gap-2 animate-fade-in">
                                 <CheckCircle size={26} /> ¡Mensaje enviado con éxito!

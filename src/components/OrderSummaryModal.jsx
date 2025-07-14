@@ -8,8 +8,8 @@ function OrderSummaryModal({ order, onClose, onBack, onContinue, showNotificatio
 
   const total = useMemo(() => {
     return Math.floor(itemsInOrder.reduce((sum, item) => {
-      // Suma el precio base del producto más el precio de la salsa si existe
-      const itemPrice = item.precio + (item.selectedSauce?.price || 0);
+      // Suma el precio base del producto más el precio de la salsa y el sabor si existen
+      const itemPrice = item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0); // NUEVO: Sumar precio del sabor
       return sum + itemPrice * item.quantity;
     }, 0));
   }, [itemsInOrder]);
@@ -20,7 +20,7 @@ function OrderSummaryModal({ order, onClose, onBack, onContinue, showNotificatio
     return null;
   }
 
-  const { customerInfo = {}, paymentMethod, cashAmount, change, deliveryMethod } = order; // <-- Añadido deliveryMethod
+  const { customerInfo = {}, paymentMethod, cashAmount, change, deliveryMethod } = order;
 
   const deliveryMethodText = useMemo(() => {
     if (deliveryMethod === 'pickup') {
@@ -84,9 +84,15 @@ function OrderSummaryModal({ order, onClose, onBack, onContinue, showNotificatio
           <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">Productos</h3>
           <ul className="space-y-2">
             {itemsInOrder.map((item, index) => (
-              <li key={item.id + (item.selectedSauce?.id || '') + index} className="flex justify-between items-center text-gray-700 dark:text-gray-300">
+              // Añadido item.selectedFlavor?.id a la key para unicidad
+              <li key={item.id + (item.selectedSauce?.id || '') + (item.selectedFlavor?.id || '') + index} className="flex justify-between items-center text-gray-700 dark:text-gray-300">
                 <div>
                   {item.name} x {item.quantity}
+                  {item.selectedFlavor && ( // NUEVO: Muestra el sabor si existe
+                    <span className="text-sm text-gray-600 dark:text-gray-400 block sm:inline-block sm:ml-2">
+                      (Sabor: {item.selectedFlavor.name})
+                    </span>
+                  )}
                   {item.selectedSauce && ( // Muestra la salsa si existe
                     <span className="text-sm text-gray-600 dark:text-gray-400 block sm:inline-block sm:ml-2">
                       (Salsa: {item.selectedSauce.name}
@@ -95,7 +101,7 @@ function OrderSummaryModal({ order, onClose, onBack, onContinue, showNotificatio
                     </span>
                   )}
                 </div>
-                <span className="font-semibold">${(item.precio + (item.selectedSauce?.price || 0)) * item.quantity}</span>
+                <span className="font-semibold">${(item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0)) * item.quantity}</span> {/* NUEVO: Sumar precio del sabor */}
               </li>
             ))}
           </ul>

@@ -27,9 +27,13 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
     }
   }, []);
 
-  // Calcula el total del carrito
+  // Calcula el total del carrito, incluyendo salsas y sabores
   const total = useMemo(() => {
-    return Math.floor(cartItems.reduce((sum, item) => sum + item.precio * item.quantity, 0));
+    return Math.floor(cartItems.reduce((sum, item) => {
+      // Suma el precio base del producto más el precio de la salsa y el sabor si existen
+      const itemPrice = item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0); // AHORA INCLUYE SABOR
+      return sum + itemPrice * item.quantity;
+    }, 0));
   }, [cartItems]);
 
   // NUEVO: Calcula el vuelto para mostrar en el formulario
@@ -271,7 +275,7 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
       try {
         // Si el pedido es inmediato, establece orderTime a la hora actual
         const finalOrderTime = formData.orderType === 'immediate' ? new Date().toISOString() : formData.orderTime;
-        
+
         await onSendOrder({ ...formData, orderTime: finalOrderTime });
       } catch (submitError) {
         console.error("Error al enviar el pedido:", submitError);
@@ -317,6 +321,7 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
               placeholder="Ej: Juan Pérez"
               aria-invalid={!!errors.name}
               aria-describedby={errors.name ? 'name-error' : undefined}
+              autoComplete="name" // Añadido autocomplete
             />
             {errors.name && <p id="name-error" className="mt-1 text-sm text-red-600">{errors.name}</p>}
           </div>
@@ -335,6 +340,7 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
               placeholder="Ej: 1123456789"
               aria-invalid={!!errors.phone}
               aria-describedby={errors.phone ? 'phone-error' : undefined}
+              autoComplete="tel" // Añadido autocomplete
             />
             {errors.phone && <p id="phone-error" className="mt-1 text-sm text-red-600">{errors.phone}</p>}
           </div>
@@ -349,12 +355,13 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
               <label htmlFor="notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 sr-only">Notas / Comentarios (opcional)</label> {/* sr-only para ocultar visualmente pero mantener para lectores de pantalla */}
               <textarea
                 id="notes"
-                name="notes"
+                name="notes" // Añadido name
                 rows="3"
                 value={formData.notes}
                 onChange={handleChange}
                 className="w-full p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 border-gray-300"
                 placeholder="Ej: Tocar timbre 3 veces, dejar en la puerta del vecino, etc."
+                autoComplete="off" // Añadido autocomplete
               ></textarea>
             </div>
           </div>
@@ -373,6 +380,7 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
                   onChange={handleDeliveryMethodChange}
                   className="form-radio text-emerald-600 h-5 w-5"
                   aria-label="Retirar en el local"
+                  autoComplete="shipping" // Añadido autocomplete
                 />
                 <span className="ml-2 text-gray-900 dark:text-gray-100 font-medium flex items-center">
                   <Home size={20} className="mr-1 text-emerald-600"/> Retiro en el local
@@ -387,6 +395,7 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
                   onChange={handleDeliveryMethodChange}
                   className="form-radio text-red-600 h-5 w-5"
                   aria-label="Delivery a domicilio sin cargo"
+                  autoComplete="shipping" // Añadido autocomplete
                 />
                 <span className="ml-2 text-gray-900 dark:text-gray-100 font-medium flex items-center">
                   <Truck size={20} className="mr-1 text-red-600"/> Delivery a domicilio
@@ -402,7 +411,7 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
               <input
                 type="text"
                 id="address"
-                name="address"
+                name="address" // Añadido name
                 value={formData.address}
                 onChange={handleChange}
                 className={`w-full p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 ${errors.address ? 'border-red-500' : 'border-gray-300'}`}
@@ -410,6 +419,7 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
                 aria-invalid={!!errors.address}
                 aria-describedby={errors.address ? 'address-error' : undefined}
                 required
+                autoComplete="street-address" // Añadido autocomplete
               />
               {errors.address && <p id="address-error" className="mt-1 text-sm text-red-600">{errors.address}</p>}
             </div>
@@ -428,6 +438,7 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
                   onChange={handleOrderTypeChange}
                   className="form-radio text-blue-600 h-5 w-5"
                   aria-label="Pedido Inmediato"
+                  autoComplete="off" // Añadido autocomplete
                 />
                 <span className="ml-2 text-gray-900 dark:text-gray-100 font-medium flex items-center">
                   <Clock size={20} className="mr-1 text-blue-600"/> Inmediato
@@ -442,6 +453,7 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
                   onChange={handleOrderTypeChange}
                   className="form-radio text-purple-600 h-5 w-5"
                   aria-label="Pedido con Reserva"
+                  autoComplete="off" // Añadido autocomplete
                 />
                 <span className="ml-2 text-gray-900 dark:text-gray-100 font-medium flex items-center">
                   <Calendar size={20} className="mr-1 text-purple-600"/> Reservar para otro momento
@@ -457,13 +469,14 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
               <input
                 type="datetime-local"
                 id="orderTime"
-                name="orderTime"
+                name="orderTime" // Añadido name
                 value={formData.orderTime}
                 onChange={handleChange}
                 className={`w-full p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 ${errors.orderTime ? 'border-red-500' : 'border-gray-300'}`}
                 aria-invalid={!!errors.orderTime}
                 aria-describedby={errors.orderTime ? 'orderTime-error' : undefined}
                 required
+                autoComplete="off" // Añadido autocomplete
               />
               {errors.orderTime && <p id="orderTime-error" className="mt-1 text-sm text-red-600">{errors.orderTime}</p>}
             </div>
@@ -488,6 +501,7 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
                   onChange={handlePaymentMethodChange}
                   className="form-radio text-blue-600 h-5 w-5"
                   aria-label="Pagar en efectivo"
+                  autoComplete="off" // Añadido autocomplete
                 />
                 <span className="ml-2 text-gray-900 dark:text-gray-100">Efectivo</span>
               </label>
@@ -500,6 +514,7 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
                   onChange={handlePaymentMethodChange}
                   className="form-radio text-blue-600 h-5 w-5"
                   aria-label="Pagar con Mercado Pago"
+                  autoComplete="off" // Añadido autocomplete
                 />
                 <span className="ml-2 text-gray-900 dark:text-gray-100">Mercado Pago</span>
               </label>
@@ -513,7 +528,7 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
               <input
                 type="number"
                 id="cashAmount"
-                name="cashAmount"
+                name="cashAmount" // Añadido name
                 value={formData.cashAmount}
                 onChange={handleChange}
                 step="1"
@@ -521,6 +536,7 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
                 placeholder={`Ej: ${total + 500}`}
                 aria-invalid={!!errors.cashAmount}
                 aria-describedby={errors.cashAmount ? 'cashAmount-error' : undefined}
+                autoComplete="off" // Añadido autocomplete
               />
               {errors.cashAmount && <p id="cashAmount-error" className="mt-1 text-sm text-red-600">{errors.cashAmount}</p>}
               {changeAmountForDisplay !== null && ( // <<<<<<<<<<<<<<< AÑADIDO: Mostrar vuelto
@@ -544,14 +560,17 @@ function OrderFormModal({ cartItems, onClose, onBack, onSendOrder, showNotificat
                 ⚠️ Recuerda: Es OBLIGATORIO enviar el COMPROBANTE de pago una vez realizado el pedido. Sin el comprobante, el pedido NO se tomará como válido.
               </p>
 
-              <label className="inline-flex items-center cursor-pointer">
+              <label htmlFor="mercadopago-confirm" className="inline-flex items-center cursor-pointer"> {/* Añadido htmlFor */}
                 <input
                   type="checkbox"
+                  id="mercadopago-confirm" // Añadido id
+                  name="mercadopagoConfirmation" // Añadido name
                   checked={mercadopagoConfirmed}
                   onChange={handleMercadopagoConfirmChange}
                   className={`form-checkbox h-5 w-5 text-green-600 rounded ${errors.mercadopagoConfirmation ? 'border-red-500' : 'border-gray-300'}`}
                   aria-invalid={!!errors.mercadopagoConfirmation}
                   aria-describedby={errors.mercadopagoConfirmation ? 'mercadopago-confirm-error' : undefined}
+                  autoComplete="off" // Añadido autocomplete
                 />
                 <span className="ml-2 text-gray-900 dark:text-gray-100">
                   He leído y entiendo que debo enviar el comprobante de pago.

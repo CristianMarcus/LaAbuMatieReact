@@ -637,6 +637,7 @@ function App() {
                   onGoToHome={() => navigate('/')}
                   hasShownAdminWelcome={hasShownAdminWelcome}
                   setHasShownAdminWelcome={setHasShownAdminWelcome}
+                  firebaseConfig={firebaseConfig} // AÑADIDO: Pasando firebaseConfig
                 />
               ) : (
                 <AdminLogin

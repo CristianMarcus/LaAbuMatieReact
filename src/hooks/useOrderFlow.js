@@ -26,6 +26,7 @@ export const useOrderFlow = (
       ? __app_id
       : localProjectId;
 
+  // Efecto para cargar el conteo de pedidos activos
   useEffect(() => {
     if (!db) return;
     const ordersCollectionRef = collection(
@@ -49,10 +50,12 @@ export const useOrderFlow = (
     return () => unsubscribe();
   }, [db, actualAppIdForFirestore, showNotification]);
 
+  // Manejador para ver el resumen desde el carrito
   const handleViewSummaryFromCart = useCallback((items) => {
     setIsCartModalOpen(false);
     const totalForSummary = items.reduce((sum, item) => {
-      const itemPrice = item.precio + (item.selectedSauce?.price || 0);
+      // Suma el precio base del producto más el precio de la salsa y el sabor si existen
+      const itemPrice = item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0); // AHORA INCLUYE SABOR
       return sum + itemPrice * item.quantity;
     }, 0);
     setCurrentOrder({
@@ -63,17 +66,20 @@ export const useOrderFlow = (
         precio: item.precio,
         imageUrl: item.image || item.imageUrl,
         selectedSauce: item.selectedSauce || null,
+        selectedFlavor: item.selectedFlavor || null, // AHORA INCLUYE SABOR
       })),
       total: totalForSummary,
     });
     setIsOrderSummaryModalOpen(true);
   }, []);
 
+  // Manejador para continuar al formulario de pedido
   const handleContinueToForm = useCallback(() => {
     setIsOrderSummaryModalOpen(false);
     setIsOrderFormModalOpen(true);
   }, []);
 
+  // Manejador para volver al carrito desde el resumen/formulario
   const handleGoBackToCart = useCallback(() => {
     setIsOrderSummaryModalOpen(false);
     setIsOrderFormModalOpen(false);
@@ -81,6 +87,7 @@ export const useOrderFlow = (
     setCurrentOrder(null);
   }, []);
 
+  // Manejador principal para enviar el pedido (a Firestore y WhatsApp)
   const handleSendOrder = useCallback(
     async ({
       name,
@@ -107,11 +114,13 @@ export const useOrderFlow = (
       }
 
       const finalOrderTime = (orderType === 'immediate' || !orderTime) ? new Date().toISOString() : orderTime;
+      
+      // CALCULAR EL TOTAL DEL PEDIDO INCLUYENDO SALSAS Y SABORES
       const totalCalculated = cartItems.reduce((sum, item) => {
-        const itemPriceWithSauce = item.precio + (item.selectedSauce?.price || 0);
-        return sum + itemPriceWithSauce * item.quantity;
+        const itemPriceWithExtras = item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0); // AHORA INCLUYE SABOR
+        return sum + itemPriceWithExtras * item.quantity;
       }, 0);
-      const totalForDisplay = Math.floor(totalCalculated);
+      const totalForDisplay = Math.floor(totalCalculated); // Redondeo final para mostrar
 
       let paymentInfoWhatsapp = '';
       let changeAmount = 0;
@@ -136,7 +145,16 @@ export const useOrderFlow = (
 
       let orderTimeInfoWhatsapp = '';
       if (orderType === 'immediate') {
-        orderTimeInfoWhatsapp = `*Tipo de Pedido:* Inmediato (Estimado: ${new Date(finalOrderTime).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} hs)`;
+        const now = new Date();
+        // Determina el tiempo de preparación base (30 minutos)
+        let estimatedMinutes = 30;
+        // Si hay más de 3 órdenes pendientes/en preparación, aumenta el tiempo estimado
+        if (existingOrdersCount > 3) { // Puedes ajustar este umbral (ej: 3, 5, etc.)
+          estimatedMinutes = 40;
+        }
+        const estimatedDeliveryTime = new Date(now.getTime() + estimatedMinutes * 60 * 1000);
+        const formattedEstimatedTime = estimatedDeliveryTime.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+        orderTimeInfoWhatsapp = `*Tipo de Pedido:* Inmediato (Listo aprox. ${formattedEstimatedTime} hs - ${estimatedMinutes} min)`;
       } else if (orderType === 'reserved') {
         const reservedDate = new Date(finalOrderTime);
         const formattedReservedTime = reservedDate.toLocaleDateString('es-AR', {
@@ -145,20 +163,29 @@ export const useOrderFlow = (
         orderTimeInfoWhatsapp = `*Tipo de Pedido:* Reserva para ${formattedReservedTime} hs`;
       }
 
+      // CONSTRUCCIÓN DEL DETALLE DE PRODUCTOS PARA WHATSAPP
       const orderDetailsForWhatsapp = cartItems.map(item => {
-        const itemPriceWithSauce = item.precio + (item.selectedSauce?.price || 0);
+        const itemBasePrice = item.precio;
+        const saucePrice = item.selectedSauce?.price || 0;
+        const flavorPrice = item.selectedFlavor?.price || 0; // OBTENER PRECIO DEL SABOR
+        const itemTotalPrice = (itemBasePrice + saucePrice + flavorPrice) * item.quantity; // CALCULAR TOTAL CON SABOR
+
         let detail = `- ${item.quantity}x ${item.name}`;
+        if (item.selectedFlavor) { // AÑADIR DETALLE DEL SABOR
+            detail += ` (Sabor: ${item.selectedFlavor.name})`;
+        }
         if (item.selectedSauce) {
           detail += ` (Salsa: ${item.selectedSauce.name}`;
           if (!item.selectedSauce.isFree && item.selectedSauce.price > 0) {
-            detail += ` +$${item.selectedSauce.price}`;
+            detail += ` +$${Math.floor(item.selectedSauce.price)}`; // Redondeo aquí también
           }
           detail += `)`;
         }
-        detail += ` = $${Math.floor(itemPriceWithSauce * item.quantity)}`;
+        detail += ` = $${Math.floor(itemTotalPrice)}`; // Redondeo final del subtotal del ítem
         return detail;
       }).join('\n');
 
+      // MENSAJE FINAL DE WHATSAPP
       let whatsappMessage = `
 *--- LA ABU MATIE APP ---*
 
@@ -208,6 +235,7 @@ ${notes ? `\n*Notas del Cliente:* ${notes}` : ''}
             precio: item.precio,
             imageUrl: item.image || item.imageUrl,
             selectedSauce: item.selectedSauce || null,
+            selectedFlavor: item.selectedFlavor || null, // AHORA INCLUYE SABOR EN EL OBJETO DE LA ORDEN
           })),
           total: totalCalculated,
           customerInfo: { name, address, phone },
@@ -248,11 +276,18 @@ ${notes ? `\n*Notas del Cliente:* ${notes}` : ''}
         return;
       }
 
-      const whatsappNumber = import.meta.env.VITE_WHATSAPP_NUMBER;
+      // ENVIAR MENSAJE A WHATSAPP
+      const whatsappNumber = import.meta.env.VITE_WHATSAPP_NUMBER; // Asegúrate de que esta variable de entorno esté configurada
+      if (!whatsappNumber) {
+        showNotification('Número de WhatsApp no configurado. Por favor, contacta al administrador.', 'error', 5000);
+        console.error('VITE_WHATSAPP_NUMBER no está definido en las variables de entorno.');
+        return;
+      }
       const encodedMessage = encodeURIComponent(whatsappMessage);
       const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`;
       window.open(whatsappUrl, '_blank');
-      handleClearCart();
+      
+      handleClearCart(); // Limpiar el carrito después de enviar el pedido
     },
     [cartItems, showNotification, db, userId, handleClearCart, localProjectId, actualAppIdForFirestore]
   );

@@ -37,70 +37,113 @@ export const useCart = (showNotification) => {
     }
   }, [cartItems]);
 
+  // Función auxiliar para generar una clave única para un ítem del carrito
+  // Ahora considera tanto la salsa como el sabor
+  const generateItemKey = useCallback((productId, sauceId = null, flavorId = null) => {
+    return `${productId}-${sauceId || 'no-sauce'}-${flavorId || 'no-flavor'}`;
+  }, []);
+
   // Añadir producto al carrito
-  // productToAdd ahora puede incluir un campo selectedSauce
+  // productToAdd ahora puede incluir selectedSauce y selectedFlavor
   const handleAddToCart = useCallback((productToAdd, quantityToAdd = 1) => {
     setCartItems((prevItems) => {
-      // Genera un ID único para el ítem del carrito basado en el producto y la salsa
-      const itemKey = productToAdd.id + (productToAdd.selectedSauce ? `-${productToAdd.selectedSauce.id}` : '');
+      // Genera un ID único para el ítem del carrito basado en el producto, la salsa y el sabor
+      const itemKey = generateItemKey(
+        productToAdd.id,
+        productToAdd.selectedSauce?.id,
+        productToAdd.selectedFlavor?.id // AHORA INCLUYE EL ID DEL SABOR
+      );
 
       const existingItem = prevItems.find((item) => {
-        const existingItemKey = item.id + (item.selectedSauce ? `-${item.selectedSauce.id}` : '');
+        const existingItemKey = generateItemKey(
+          item.id,
+          item.selectedSauce?.id,
+          item.selectedFlavor?.id // AHORA INCLUYE EL ID DEL SABOR
+        );
         return existingItemKey === itemKey;
       });
+
+      // Función auxiliar para construir el nombre del producto en las notificaciones
+      const getNotificationName = (product, sauce, flavor) => {
+        let name = product.name;
+        if (flavor) {
+          name += ` (Sabor: ${flavor.name})`;
+        }
+        if (sauce) {
+          name += ` (Salsa: ${sauce.name})`;
+        }
+        return name;
+      };
 
       if (existingItem) {
         const newQuantity = existingItem.quantity + quantityToAdd;
         if (newQuantity <= productToAdd.stock) {
-          showNotification(`${productToAdd.name} ${productToAdd.selectedSauce ? `con ${productToAdd.selectedSauce.name}` : ''} +${quantityToAdd} unidad(es)`, 'info', 1500);
+          showNotification(
+            `${getNotificationName(productToAdd, productToAdd.selectedSauce, productToAdd.selectedFlavor)} +${quantityToAdd} unidad(es)`,
+            'info',
+            1500
+          );
           return prevItems.map((item) =>
-            (item.id + (item.selectedSauce ? `-${item.selectedSauce.id}` : '')) === itemKey
+            generateItemKey(item.id, item.selectedSauce?.id, item.selectedFlavor?.id) === itemKey
               ? { ...item, quantity: newQuantity }
               : item
           );
         } else {
-          showNotification(`No se puede añadir más de "${productToAdd.name} ${productToAdd.selectedSauce ? `con ${productToAdd.selectedSauce.name}` : ''}". Stock disponible: ${productToAdd.stock - existingItem.quantity}`, 'warning', 3000);
+          showNotification(
+            `No se puede añadir más de "${getNotificationName(productToAdd, productToAdd.selectedSauce, productToAdd.selectedFlavor)}". Stock disponible: ${productToAdd.stock - existingItem.quantity}`,
+            'warning',
+            3000
+          );
           return prevItems;
         }
       } else {
         if (quantityToAdd <= productToAdd.stock) {
-          showNotification(`"${productToAdd.name} ${productToAdd.selectedSauce ? `con ${productToAdd.selectedSauce.name}` : ''}" añadido al carrito`, 'success', 2000);
+          showNotification(
+            `"${getNotificationName(productToAdd, productToAdd.selectedSauce, productToAdd.selectedFlavor)}" añadido al carrito`,
+            'success',
+            2000
+          );
+          // Asegúrate de que el objeto productToAdd ya contenga selectedSauce y selectedFlavor
           return [...prevItems, { ...productToAdd, quantity: quantityToAdd }];
         } else {
-          showNotification(`No se puede añadir "${productToAdd.name} ${productToAdd.selectedSauce ? `con ${productToAdd.selectedSauce.name}` : ''}". Stock disponible: ${productToAdd.stock}`, 'warning', 3000);
+          showNotification(
+            `No se puede añadir "${getNotificationName(productToAdd, productToAdd.selectedSauce, productToAdd.selectedFlavor)}". Stock disponible: ${productToAdd.stock}`,
+            'warning',
+            3000
+          );
           return prevItems;
         }
       }
     });
-  }, [showNotification]);
+  }, [showNotification, generateItemKey]);
 
-  // Aumentar cantidad de un ítem en el carrito (ahora con sauceId)
-  const handleIncreaseQuantity = useCallback((productId, sauceId = null) => {
+  // Aumentar cantidad de un ítem en el carrito (ahora con sauceId y flavorId)
+  const handleIncreaseQuantity = useCallback((productId, sauceId = null, flavorId = null) => { // AHORA RECIBE FLAVORID
     setCartItems((prevItems) =>
       prevItems.map((item) => {
-        const itemKey = item.id + (item.selectedSauce ? `-${item.selectedSauce.id}` : '');
-        const targetKey = productId + (sauceId ? `-${sauceId}` : '');
+        const itemKey = generateItemKey(item.id, item.selectedSauce?.id, item.selectedFlavor?.id);
+        const targetKey = generateItemKey(productId, sauceId, flavorId); // AHORA INCLUYE FLAVORID
 
         if (itemKey === targetKey) {
           const newQuantity = item.quantity + 1;
           if (newQuantity <= item.stock) {
             return { ...item, quantity: newQuantity };
           } else {
-            showNotification(`No hay más stock de "${item.name} ${item.selectedSauce ? `con ${item.selectedSauce.name}` : ''}" disponible.`, 'warning', 2000);
+            showNotification(`No hay más stock de "${item.name} ${item.selectedSauce ? `con ${item.selectedSauce.name}` : ''} ${item.selectedFlavor ? `sabor ${item.selectedFlavor.name}` : ''}" disponible.`, 'warning', 2000); // Notificación con sabor
             return item;
           }
         }
         return item;
       })
     );
-  }, [showNotification]);
+  }, [showNotification, generateItemKey]);
 
-  // Disminuir cantidad de un ítem en el carrito (ahora con sauceId)
-  const handleDecreaseQuantity = useCallback((productId, sauceId = null) => {
+  // Disminuir cantidad de un ítem en el carrito (ahora con sauceId y flavorId)
+  const handleDecreaseQuantity = useCallback((productId, sauceId = null, flavorId = null) => { // AHORA RECIBE FLAVORID
     setCartItems((prevItems) =>
       prevItems.map((item) => {
-        const itemKey = item.id + (item.selectedSauce ? `-${item.selectedSauce.id}` : '');
-        const targetKey = productId + (sauceId ? `-${sauceId}` : '');
+        const itemKey = generateItemKey(item.id, item.selectedSauce?.id, item.selectedFlavor?.id);
+        const targetKey = generateItemKey(productId, sauceId, flavorId); // AHORA INCLUYE FLAVORID
 
         if (itemKey === targetKey) {
           return { ...item, quantity: item.quantity > 1 ? item.quantity - 1 : 0 }; // Set to 0 to be filtered out
@@ -108,19 +151,19 @@ export const useCart = (showNotification) => {
         return item;
       }).filter(item => item.quantity > 0) // Elimina el ítem si la cantidad llega a 0
     );
-  }, [showNotification]);
+  }, [generateItemKey]);
 
-  // Eliminar un ítem del carrito (ahora con sauceId)
-  const handleRemoveItem = useCallback((productId, sauceId = null) => {
+  // Eliminar un ítem del carrito (ahora con sauceId y flavorId)
+  const handleRemoveItem = useCallback((productId, sauceId = null, flavorId = null) => { // AHORA RECIBE FLAVORID
     setCartItems((prevItems) => {
-      const targetKey = productId + (sauceId ? `-${sauceId}` : '');
-      const removedItem = prevItems.find(item => (item.id + (item.selectedSauce ? `-${item.selectedSauce.id}` : '')) === targetKey);
+      const targetKey = generateItemKey(productId, sauceId, flavorId); // AHORA INCLUYE FLAVORID
+      const removedItem = prevItems.find(item => generateItemKey(item.id, item.selectedSauce?.id, item.selectedFlavor?.id) === targetKey); // Busca con sabor
       if (removedItem) {
-        showNotification(`"${removedItem.name} ${removedItem.selectedSauce ? `con ${removedItem.selectedSauce.name}` : ''}" eliminado del carrito`, 'error', 2000);
+        showNotification(`"${removedItem.name} ${removedItem.selectedSauce ? `con ${removedItem.selectedSauce.name}` : ''} ${removedItem.selectedFlavor ? `sabor ${removedItem.selectedFlavor.name}` : ''}" eliminado del carrito`, 'error', 2000); // Notificación con sabor
       }
-      return prevItems.filter((item) => (item.id + (item.selectedSauce ? `-${item.selectedSauce.id}` : '')) !== targetKey);
+      return prevItems.filter((item) => generateItemKey(item.id, item.selectedSauce?.id, item.selectedFlavor?.id) !== targetKey); // Filtra con sabor
     });
-  }, [showNotification]);
+  }, [showNotification, generateItemKey]);
 
   // Vaciar completamente el carrito
   const handleClearCart = useCallback(() => {

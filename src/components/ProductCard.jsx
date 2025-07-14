@@ -1,10 +1,10 @@
 // src/components/ProductCard.jsx
-import React, { useState, useCallback, useMemo, useEffect } from 'react'; // Importa useEffect
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { ShoppingCart, ImageOff, Plus, Minus, Heart, Star } from 'lucide-react';
 
 // Componente funcional ProductCard: Muestra una tarjeta individual de producto.
 // Props:
-// - producto: Objeto con los datos del producto (id, name, precio, descripcion, imageUrl, stock, reviews, sauces).
+// - producto: Objeto con los datos del producto (id, name, precio, descripcion, imageUrl, stock, reviews, sauces, flavors).
 // - onAddToCart: Función para añadir el producto al carrito.
 // - onOpenDetails: Función para abrir el modal de detalles del producto.
 // - isFavorite: Booleano que indica si el producto es favorito.
@@ -12,29 +12,45 @@ import { ShoppingCart, ImageOff, Plus, Minus, Heart, Star } from 'lucide-react';
 const ProductCard = React.memo(({ producto, onAddToCart, onOpenDetails, isFavorite, onToggleFavorite }) => {
   // Estado local para la cantidad del producto a añadir al carrito
   const [quantity, setQuantity] = useState(producto.stock > 0 ? 1 : 0);
-  // Nuevo estado para la salsa seleccionada
+  // Estado para la salsa seleccionada
   const [selectedSauce, setSelectedSauce] = useState(null);
+  // NUEVO: Estado para el sabor seleccionado
+  const [selectedFlavor, setSelectedFlavor] = useState(null);
 
-  // Efecto para inicializar la salsa seleccionada cuando el producto cambia o se monta
+  // Efecto para inicializar la salsa y el sabor seleccionados cuando el producto cambia o se monta
   useEffect(() => {
-    if (producto.category === 'Pastas' && producto.sauces && producto.sauces.length > 0) {
-      // Por defecto, selecciona la primera salsa si es "De la Casa" o la primera disponible
-      const defaultSauce = producto.sauces.find(s => s.name === 'De la Casa') || producto.sauces[0];
-      setSelectedSauce(defaultSauce);
+    if (producto.category === 'Pastas') {
+      if (producto.sauces && producto.sauces.length > 0) {
+        const defaultSauce = producto.sauces.find(s => s.name === 'De la Casa') || producto.sauces[0];
+        setSelectedSauce(defaultSauce);
+      } else {
+        setSelectedSauce(null);
+      }
+      // NUEVO: Inicializar sabor
+      if (producto.flavors && producto.flavors.length > 0) {
+        setSelectedFlavor(producto.flavors[0]); // Selecciona el primer sabor por defecto
+      } else {
+        setSelectedFlavor(null);
+      }
     } else {
-      setSelectedSauce(null); // No hay salsas para este producto
+      setSelectedSauce(null);
+      setSelectedFlavor(null); // Asegurarse de que no haya sabor seleccionado para otras categorías
     }
-  }, [producto]); // Depende de 'producto' para re-inicializar cuando cambie
+  }, [producto]);
 
   // Aseguramos que precio sea un número válido y lo redondeamos a un número entero
-  // Ahora incluye el precio de la salsa seleccionada
+  // Ahora incluye el precio de la salsa seleccionada y el sabor (si aplica)
   const displayPrecio = useMemo(() => {
     let basePrice = typeof producto.precio === 'number' ? Math.floor(producto.precio) : 0;
     if (selectedSauce && typeof selectedSauce.price === 'number') {
       basePrice += selectedSauce.price;
     }
+    // Si los sabores tuvieran precio, se sumarían aquí:
+    // if (selectedFlavor && typeof selectedFlavor.price === 'number') {
+    //   basePrice += selectedFlavor.price;
+    // }
     return basePrice;
-  }, [producto.precio, selectedSauce]);
+  }, [producto.precio, selectedSauce, selectedFlavor]); // Añadido selectedFlavor a las dependencias
 
   // Booleano para verificar si el producto está agotado
   const isOutOfStock = producto.stock <= 0;
@@ -52,10 +68,10 @@ const ProductCard = React.memo(({ producto, onAddToCart, onOpenDetails, isFavori
   // Manejador para añadir al carrito
   const handleAddToCartClick = useCallback((e) => {
     e.stopPropagation(); // Detiene la propagación para no abrir el modal
-    // Pasa la salsa seleccionada al carrito
-    onAddToCart({ ...producto, selectedSauce: selectedSauce }, quantity); // Pasa el producto modificado con la salsa
+    // Pasa la salsa y el sabor seleccionados al carrito
+    onAddToCart({ ...producto, selectedSauce: selectedSauce, selectedFlavor: selectedFlavor }, quantity); // Pasa el producto modificado con salsa y sabor
     setQuantity(producto.stock > 0 ? 1 : 0); // RESTABLECE LA CANTIDAD A 1 (o 0 si agotado) DESPUÉS DE AÑADIR AL CARRITO
-  }, [onAddToCart, producto, quantity, selectedSauce]); // Añadido selectedSauce a las dependencias
+  }, [onAddToCart, producto, quantity, selectedSauce, selectedFlavor]); // Añadido selectedFlavor a las dependencias
 
   // Manejador para abrir detalles del producto
   const handleOpenDetailsClick = useCallback(() => {
@@ -68,10 +84,30 @@ const ProductCard = React.memo(({ producto, onAddToCart, onOpenDetails, isFavori
     setSelectedSauce(sauce);
   }, []);
 
+  // NUEVO: Manejador para la selección de sabor que detiene la propagación
+  const handleFlavorSelection = useCallback((e, flavor) => {
+    e.stopPropagation(); // Detiene la propagación para no abrir el modal
+    setSelectedFlavor(flavor);
+  }, []);
+  // FIN NUEVO MANEJADOR PARA SABORES
+
+  // Condición para deshabilitar el botón de añadir al carrito
+  const disableAddToCartButton = isOutOfStock || quantity === 0 ||
+    (producto.category === 'Pastas' && (!selectedSauce || !selectedFlavor)); // NUEVO: Requiere salsa Y sabor para pastas
+
+  // Texto del botón añadir al carrito
+  const addToCartButtonText = isOutOfStock
+    ? 'Agotado'
+    : (producto.category === 'Pastas' && !selectedFlavor
+      ? 'Elegir Sabor'
+      : (producto.category === 'Pastas' && !selectedSauce
+        ? 'Elegir Salsa'
+        : 'Añadir al Carrito'));
+
   return (
     <div
       className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 flex flex-col h-full overflow-hidden cursor-pointer transform transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl"
-      onClick={handleOpenDetailsClick} // Abre el modal de detalles al hacer clic en cualquier parte de la tarjeta
+      onClick={handleOpenDetailsClick}
       aria-label={`Ver detalles de ${producto.name}`}
     >
       {/* Sección de la imagen del producto */}
@@ -122,6 +158,37 @@ const ProductCard = React.memo(({ producto, onAddToCart, onOpenDetails, isFavori
           )}
         </p>
 
+        {/* NUEVO: Opciones de sabor (solo para pastas) */}
+        {producto.category === 'Pastas' && producto.flavors && producto.flavors.length > 0 && (
+          <div className="mb-4">
+            <p className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">Elige tu Sabor:</p>
+            <div className="flex flex-wrap gap-2">
+              {producto.flavors.map((flavor) => (
+                <label
+                  key={flavor.id}
+                  className={`flex items-center px-3 py-1 rounded-full border cursor-pointer transition-all duration-200
+                    ${selectedFlavor?.id === flavor.id
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                      : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600'
+                    }`}
+                  onClick={(e) => e.stopPropagation()} // Detiene la propagación en el label
+                >
+                  <input
+                    type="radio"
+                    name={`flavor-${producto.id}`}
+                    value={flavor.id}
+                    checked={selectedFlavor?.id === flavor.id}
+                    onChange={(e) => handleFlavorSelection(e, flavor)} // Usa el nuevo manejador
+                    className="mr-2 hidden" // Oculta el radio button nativo
+                  />
+                  {flavor.name}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+        {/* FIN NUEVO: Opciones de sabor */}
+
         {/* Opciones de salsa (solo para pastas) */}
         {producto.category === 'Pastas' && producto.sauces && producto.sauces.length > 0 && (
           <div className="mb-4">
@@ -142,8 +209,8 @@ const ProductCard = React.memo(({ producto, onAddToCart, onOpenDetails, isFavori
                     name={`sauce-${producto.id}`}
                     value={sauce.id}
                     checked={selectedSauce?.id === sauce.id}
-                    onChange={(e) => handleSauceSelection(e, sauce)} // Usa el nuevo manejador
-                    className="mr-2 hidden" // Oculta el radio button nativo
+                    onChange={(e) => handleSauceSelection(e, sauce)}
+                    className="mr-2 hidden"
                   />
                   {sauce.name}
                   {!sauce.isFree && sauce.price > 0 && (
@@ -156,8 +223,9 @@ const ProductCard = React.memo(({ producto, onAddToCart, onOpenDetails, isFavori
         )}
 
         {/* Controles de cantidad y botón Añadir al Carrito */}
-        <div className="flex items-center justify-between mt-auto">
-          <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-xl overflow-hidden shadow-sm">
+        <div className="flex flex-col sm:flex-row items-center justify-between mt-auto gap-3">
+          {/* Controles de cantidad */}
+          <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-xl overflow-hidden shadow-sm w-full sm:w-auto justify-center">
             <button
               onClick={(e) => { e.stopPropagation(); handleDecrease(); }}
               className="p-2 text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-l-xl transition-colors duration-200"
@@ -178,17 +246,18 @@ const ProductCard = React.memo(({ producto, onAddToCart, onOpenDetails, isFavori
               <Plus size={18} />
             </button>
           </div>
+          {/* Botón Añadir al Carrito */}
           <button
             onClick={handleAddToCartClick}
-            className={`flex items-center justify-center gap-2 text-white text-base font-medium py-2 px-4 rounded-xl transition-all duration-300 shadow-md hover:shadow-lg focus:outline-none focus:ring-2
-              ${isOutOfStock || quantity === 0 || (producto.category === 'Pastas' && !selectedSauce) // Deshabilita si agotado, cantidad es 0, o es pasta sin salsa seleccionada
+            className={`flex items-center justify-center gap-2 text-white text-base font-medium py-2 px-4 rounded-xl transition-all duration-300 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 w-full sm:w-auto
+              ${disableAddToCartButton
                 ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
                 : 'bg-red-600 hover:bg-red-700 focus:ring-red-300 dark:focus:ring-red-800'}`
             }
-            aria-label={isOutOfStock ? "Producto agotado" : (producto.category === 'Pastas' && !selectedSauce ? "Selecciona una salsa" : "Agregar al carrito")}
-            disabled={isOutOfStock || quantity === 0 || (producto.category === 'Pastas' && !selectedSauce)}
+            aria-label={addToCartButtonText}
+            disabled={disableAddToCartButton}
           >
-            <ShoppingCart size={24} /> {isOutOfStock ? 'Agotado' : (producto.category === 'Pastas' && !selectedSauce ? 'Elegir Salsa' : 'Añadir al Carrito')}
+            <ShoppingCart size={24} /> {addToCartButtonText}
           </button>
         </div>
       </div>

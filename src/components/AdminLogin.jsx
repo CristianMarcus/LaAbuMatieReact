@@ -44,11 +44,13 @@ function AdminLogin({ onLogin, onClose }) {
             <input
               type="email"
               id="email"
+              name="email" // Añadido name
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white transition-colors duration-200"
               placeholder="admin@ejemplo.com"
+              autoComplete="email" // Añadido autocomplete
             />
           </div>
           <div>
@@ -58,11 +60,13 @@ function AdminLogin({ onLogin, onClose }) {
             <input
               type="password"
               id="password"
+              name="password" // Añadido name
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white transition-colors duration-200"
               placeholder="••••••••"
+              autoComplete="current-password" // Añadido autocomplete
             />
           </div>
           <button

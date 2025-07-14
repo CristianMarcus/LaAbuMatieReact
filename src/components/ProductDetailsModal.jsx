@@ -30,16 +30,17 @@ function ProductDetailsModal({
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Estado para la selección de salsa
+  // Estado para la selección de salsa y sabor
   const [selectedSauce, setSelectedSauce] = useState(null);
+  const [selectedFlavor, setSelectedFlavor] = useState(null); // NUEVO: Estado para el sabor seleccionado
 
   const productPrice = product.precio || 0;
   const isOutOfStock = product.stock <= 0;
 
-  // Calcula el precio total a mostrar (producto + salsa)
+  // Calcula el precio total a mostrar (producto + salsa + sabor)
   const displayPrice = useMemo(() => {
-    return productPrice + (selectedSauce?.price || 0);
-  }, [productPrice, selectedSauce]);
+    return productPrice + (selectedSauce?.price || 0) + (selectedFlavor?.price || 0); // INCLUYE PRECIO DEL SABOR
+  }, [productPrice, selectedSauce, selectedFlavor]); // Añadido selectedFlavor a las dependencias
 
   // Cargar reseñas para este producto
   useEffect(() => {
@@ -67,22 +68,34 @@ function ProductDetailsModal({
     fetchReviews();
   }, [db, product, appId, showNotification]);
 
-  // Inicializa la cantidad a 1 o 0 si está agotado
+  // Inicializa la cantidad, salsa y sabor al abrir el modal o cambiar de producto
   useEffect(() => {
     setQuantity(product.stock > 0 ? 1 : 0);
-    // Si el producto tiene salsas, selecciona la primera por defecto si no hay ninguna seleccionada
-    if (product.category === 'Pastas' && product.sauces && product.sauces.length > 0 && !selectedSauce) {
-      setSelectedSauce(product.sauces[0]);
-    } else if (product.category !== 'Pastas') {
+    if (product.category === 'Pastas') {
+      // Inicializa salsa
+      if (product.sauces && product.sauces.length > 0) {
+        setSelectedSauce(product.sauces[0]); // Selecciona la primera salsa por defecto
+      } else {
+        setSelectedSauce(null);
+      }
+      // Inicializa sabor
+      if (product.flavors && product.flavors.length > 0) { // NUEVO: Inicializar sabor
+        setSelectedFlavor(product.flavors[0]); // Selecciona el primer sabor por defecto
+      } else {
+        setSelectedFlavor(null);
+      }
+    } else {
       setSelectedSauce(null); // Asegura que no haya salsa seleccionada si no es pasta
+      setSelectedFlavor(null); // Asegura que no haya sabor seleccionado si no es pasta
     }
-  }, [product, selectedSauce]); // Añadido selectedSauce a las dependencias para reaccionar si se limpia
+  }, [product]);
 
   // Inicializa el producto editado cuando el producto prop cambia
   useEffect(() => {
     setEditedProduct(product);
-    // Reinicia la salsa seleccionada al abrir el modal para un nuevo producto
+    // Reinicia la salsa y sabor seleccionados al abrir el modal para un nuevo producto
     setSelectedSauce(null);
+    setSelectedFlavor(null);
   }, [product]);
 
   // Manejadores para la cantidad del producto
@@ -102,16 +115,27 @@ function ProductDetailsModal({
 
   // Manejador para añadir al carrito
   const handleAddToCartClick = useCallback(() => {
+    // Deshabilita si es pasta y falta salsa o sabor
+    const requiresSauce = product.category === 'Pastas' && product.sauces && product.sauces.length > 0;
+    const requiresFlavor = product.category === 'Pastas' && product.flavors && product.flavors.length > 0;
+
     if (quantity > 0 && !isOutOfStock) {
-      // Pasa el producto, la cantidad y la salsa seleccionada
-      // Asegúrate de que el objeto product que se pasa incluya la salsa seleccionada
-      onAddToCart({ ...product, selectedSauce: selectedSauce }, quantity);
+      if (requiresSauce && !selectedSauce) {
+        showNotification('Por favor, selecciona una salsa para este producto.', 'warning');
+        return;
+      }
+      if (requiresFlavor && !selectedFlavor) { // NUEVO: Validar selección de sabor
+        showNotification('Por favor, selecciona un sabor para este producto.', 'warning');
+        return;
+      }
+
+      // Pasa el producto, la cantidad, la salsa seleccionada y el sabor seleccionado
+      onAddToCart({ ...product, selectedSauce: selectedSauce, selectedFlavor: selectedFlavor }, quantity); // PASA EL SABOR
       onClose(); // Cierra el modal después de añadir al carrito
     } else {
       showNotification('No se puede añadir este producto al carrito.', 'error');
     }
-  }, [quantity, isOutOfStock, onAddToCart, product, onClose, showNotification, selectedSauce]);
-
+  }, [quantity, isOutOfStock, onAddToCart, product, onClose, showNotification, selectedSauce, selectedFlavor]); // Añadido selectedFlavor
 
   // Manejador para enviar una reseña
   const handleReviewSubmit = useCallback(async ({ rating, comment }) => {
@@ -178,11 +202,37 @@ function ProductDetailsModal({
     }));
   }, []);
 
+  // NUEVOS MANEJADORES PARA LA EDICIÓN DE SABORES EN MODO ADMIN
+  const handleAdminFlavorChange = useCallback((index, field, value) => {
+    setEditedProduct(prev => {
+      const newFlavors = [...(prev.flavors || [])]; // Asegura que flavors sea un array
+      newFlavors[index] = {
+        ...newFlavors[index],
+        [field]: value,
+      };
+      return { ...prev, flavors: newFlavors };
+    });
+  }, []);
+
+  const handleAddAdminFlavor = useCallback(() => {
+    setEditedProduct(prev => ({
+      ...prev,
+      flavors: [...(prev.flavors || []), { id: Date.now().toString() + Math.random().toString(36).substring(2, 9), name: '' }],
+    }));
+  }, []);
+
+  const handleRemoveAdminFlavor = useCallback((index) => {
+    setEditedProduct(prev => ({
+      ...prev,
+      flavors: (prev.flavors || []).filter((_, i) => i !== index),
+    }));
+  }, []);
+  // FIN NUEVOS MANEJADORES PARA SABORES
 
   const handleSaveEditedProduct = useCallback(async () => {
     setIsSaving(true);
     try {
-      const productRef = doc(db, `artifacts/${appId}/public/data/products`, editedProduct.id); // CAMBIO: 'productos' a 'products'
+      const productRef = doc(db, `artifacts/${appId}/public/data/products`, editedProduct.id);
       await updateDoc(productRef, {
         name: editedProduct.name,
         descripcion: editedProduct.descripcion,
@@ -191,6 +241,7 @@ function ProductDetailsModal({
         stock: Number(editedProduct.stock),
         image: editedProduct.image,
         sauces: editedProduct.category === 'Pastas' ? (editedProduct.sauces || []) : [], // Guardar salsas solo si es Pastas
+        flavors: editedProduct.category === 'Pastas' ? (editedProduct.flavors || []) : [], // NUEVO: Guardar sabores solo si es Pastas
       });
       showNotification('Producto actualizado con éxito (Admin).', 'success');
       setIsEditing(false); // Sale del modo edición
@@ -204,20 +255,24 @@ function ProductDetailsModal({
   }, [db, appId, editedProduct, showNotification]);
 
   const handleDeleteProduct = useCallback(async () => {
-    if (!window.confirm('¿Estás seguro de que quieres eliminar este producto? Esta acción es irreversible.')) {
-      return;
-    }
-    setIsDeleting(true);
-    try {
-      await deleteDoc(doc(db, `artifacts/${appId}/public/data/products`, product.id)); // CAMBIO: 'productos' a 'products'
-      showNotification('Producto eliminado con éxito (Admin).', 'success');
-      onClose(); // Cierra el modal después de eliminar
-    } catch (e) {
-      console.error("Error al eliminar producto (Admin):", e);
-      showNotification(`Error al eliminar producto (Admin): ${e.message}`, 'error');
-    } finally {
-      setIsDeleting(false);
-    }
+    // Reemplazado window.confirm por una notificación para mejor UX
+    showNotification('¿Estás seguro de que quieres eliminar este producto? Esta acción es irreversible.', 'confirm', 5000, () => {
+      // Acción de confirmación
+      const executeDelete = async () => {
+        setIsDeleting(true);
+        try {
+          await deleteDoc(doc(db, `artifacts/${appId}/public/data/products`, product.id));
+          showNotification('Producto eliminado con éxito (Admin).', 'success');
+          onClose(); // Cierra el modal después de eliminar
+        } catch (e) {
+          console.error("Error al eliminar producto (Admin):", e);
+          showNotification(`Error al eliminar producto (Admin): ${e.message}`, 'error');
+        } finally {
+          setIsDeleting(false);
+        }
+      };
+      executeDelete();
+    });
   }, [db, appId, product, onClose, showNotification]);
 
 
@@ -321,7 +376,7 @@ function ProductDetailsModal({
                     type="text"
                     name="image"
                     value={editedProduct.image}
-                    onChange={handleImageURLChange} // Changed to handleImageURLChange
+                    onChange={handleImageURLChange}
                     placeholder="URL de la imagen"
                     className="text-sm text-gray-600 dark:text-gray-300 mb-4 w-full bg-gray-100 dark:bg-gray-700 p-2 rounded"
                   />
@@ -371,12 +426,84 @@ function ProductDetailsModal({
                       </button>
                     </div>
                   )}
+
+                  {/* Edición de Sabores para Admin */}
+                  {editedProduct.category === 'Pastas' && (
+                    <div className="mt-4 p-4 border border-gray-300 dark:border-gray-600 rounded-md">
+                      <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Editar Sabores</h4>
+                      {(editedProduct.flavors || []).map((flavor, index) => (
+                        <div key={flavor.id || index} className="flex items-center gap-2 mb-2">
+                          <input
+                            type="text"
+                            value={flavor.name}
+                            onChange={(e) => handleAdminFlavorChange(index, 'name', e.target.value)}
+                            placeholder="Nombre del sabor"
+                            className="flex-grow px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:text-white"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAdminFlavor(index)}
+                            className="p-1 bg-red-500 hover:bg-red-600 text-white rounded-full"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={handleAddAdminFlavor}
+                        className="mt-2 px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-md flex items-center gap-1 text-sm"
+                      >
+                        <PlusCircle size={16} /> Añadir Sabor
+                      </button>
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
                   <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">{product.name}</h3>
                   <p className="text-gray-700 dark:text-gray-300 mb-4">{product.descripcion}</p>
-                  <p className="text-4xl font-extrabold text-red-600 dark:text-red-400 mb-6">${Math.floor(displayPrice)}</p> {/* Updated price display */}
+                  <p className="text-4xl font-extrabold text-red-600 dark:text-red-400 mb-6">${Math.floor(displayPrice)}</p>
+
+                  {/* Selección de Sabores (para usuarios no-admin) */}
+                  {product.category === 'Pastas' && product.flavors && product.flavors.length > 0 && (
+                    <div className="mb-4">
+                      <label htmlFor="flavor-select" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                        Selecciona un sabor:
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {product.flavors.map(flavor => (
+                          <label
+                            key={flavor.id}
+                            className={`flex items-center px-3 py-1 rounded-full border cursor-pointer transition-all duration-200
+                              ${selectedFlavor?.id === flavor.id
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                                : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600'
+                              }`}
+                          >
+                            <input
+                              type="radio"
+                              name={`flavor-${product.id}`}
+                              value={flavor.id}
+                              checked={selectedFlavor?.id === flavor.id}
+                              onChange={(e) => {
+                                const flavorId = e.target.value;
+                                const flavor = product.flavors.find(f => f.id === flavorId);
+                                setSelectedFlavor(flavor || null);
+                              }}
+                              className="mr-2 hidden"
+                            />
+                            {flavor.name}
+                          </label>
+                        ))}
+                      </div>
+                      {selectedFlavor && (
+                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
+                          Sabor seleccionado: {selectedFlavor.name}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {/* Selección de Salsas (para usuarios no-admin) */}
                   {product.category === 'Pastas' && product.sauces && product.sauces.length > 0 && (
@@ -384,23 +511,32 @@ function ProductDetailsModal({
                       <label htmlFor="sauce-select" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                         Selecciona una salsa:
                       </label>
-                      <select
-                        id="sauce-select"
-                        value={selectedSauce?.id || ''}
-                        onChange={(e) => {
-                          const sauceId = e.target.value;
-                          const sauce = product.sauces.find(s => s.id === sauceId);
-                          setSelectedSauce(sauce || null);
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white transition-colors duration-200"
-                      >
-                        <option value="">Sin salsa</option>
+                      <div className="flex flex-wrap gap-2">
                         {product.sauces.map(sauce => (
-                          <option key={sauce.id} value={sauce.id}>
-                            {sauce.name} {sauce.isFree ? '(Gratis)' : `(+$${sauce.price})`}
-                          </option>
+                          <label
+                            key={sauce.id}
+                            className={`flex items-center px-3 py-1 rounded-full border cursor-pointer transition-all duration-200
+                              ${selectedSauce?.id === sauce.id
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                                : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600'
+                              }`}
+                          >
+                            <input
+                              type="radio"
+                              name={`sauce-${product.id}`}
+                              value={sauce.id}
+                              checked={selectedSauce?.id === sauce.id}
+                              onChange={(e) => {
+                                const sauceId = e.target.value;
+                                const sauce = product.sauces.find(s => s.id === sauceId);
+                                setSelectedSauce(sauce || null);
+                              }}
+                              className="mr-2 hidden"
+                            />
+                            {sauce.name} {sauce.isFree ? '(Gratis)' : `(+$${Math.floor(sauce.price)})`}
+                          </label>
                         ))}
-                      </select>
+                      </div>
                       {selectedSauce && !selectedSauce.isFree && selectedSauce.price > 0 && (
                         <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
                           Precio con salsa: ${Math.floor(productPrice + selectedSauce.price)}
@@ -444,10 +580,15 @@ function ProductDetailsModal({
                     </button>
                   </div>
                   <button
-                    onClick={handleAddToCartClick} // Changed to handleAddToCartClick
-                    disabled={isOutOfStock || quantity === 0 || (product.category === 'Pastas' && !selectedSauce && product.sauces && product.sauces.length > 0)} // Disable if pasta and no sauce selected
+                    onClick={handleAddToCartClick}
+                    disabled={
+                      isOutOfStock ||
+                      quantity === 0 ||
+                      (product.category === 'Pastas' && product.sauces && product.sauces.length > 0 && !selectedSauce) || // Requiere salsa si hay salsas
+                      (product.category === 'Pastas' && product.flavors && product.flavors.length > 0 && !selectedFlavor) // NUEVO: Requiere sabor si hay sabores
+                    }
                     className={`w-full font-bold py-3 px-6 rounded-xl text-lg flex items-center justify-center gap-2 shadow-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 ${
-                      isOutOfStock || quantity === 0 || (product.category === 'Pastas' && !selectedSauce && product.sauces && product.sauces.length > 0)
+                      (isOutOfStock || quantity === 0 || (product.category === 'Pastas' && product.sauces && product.sauces.length > 0 && !selectedSauce) || (product.category === 'Pastas' && product.flavors && product.flavors.length > 0 && !selectedFlavor))
                         ? 'bg-gray-400 dark:bg-gray-600 text-white cursor-not-allowed'
                         : 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-300'
                     }`}

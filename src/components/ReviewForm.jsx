@@ -28,10 +28,10 @@ function ReviewForm({ onSubmit, initialRating = 0, initialComment = '' }) {
       <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">Deja tu Reseña</h3>
 
       <div className="mb-4">
-        <label className="block text-gray-700 dark:text-gray-200 text-sm font-bold mb-2">
+        <label htmlFor="rating-stars" className="block text-gray-700 dark:text-gray-200 text-sm font-bold mb-2"> {/* Añadido htmlFor */}
           Tu Calificación:
         </label>
-        <div className="flex items-center">
+        <div id="rating-stars" className="flex items-center"> {/* Añadido id */}
           {[...Array(5)].map((_, index) => {
             const starValue = index + 1;
             return (
@@ -61,11 +61,13 @@ function ReviewForm({ onSubmit, initialRating = 0, initialComment = '' }) {
         </label>
         <textarea
           id="comment"
+          name="comment" // Añadido name
           rows="3"
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline focus:ring-2 focus:ring-red-500 dark:bg-gray-800 dark:border-gray-600 dark:placeholder-gray-400 transition-colors duration-200"
           placeholder="Escribe tu comentario aquí..."
+          autoComplete="off" // Añadido autocomplete
         ></textarea>
       </div>
 

@@ -105,7 +105,7 @@ const JsonImportModal = ({ onClose, onImport, showNotification, isImporting }) =
 };
 
 
-const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, hasShownAdminWelcome, setHasShownAdminWelcome }) => {
+const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, hasShownAdminWelcome, setHasShownAdminWelcome, firebaseConfig }) => { // firebaseConfig es necesario aquí
   const [activeTab, setActiveTab] = useState('products'); // 'products', 'orders', 'reviews', 'metrics'
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -361,6 +361,12 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
                 isFree: s.isFree || false,
               }))
             : [],
+          flavors: productData.category === 'Pastas' && Array.isArray(productData.flavors) // AÑADIDO: Importar sabores
+            ? productData.flavors.map(f => ({
+                id: f.id || Date.now().toString() + Math.random().toString(36).substring(2, 9),
+                name: f.name || '',
+              }))
+            : [],
         };
         batch.set(docRef, productToSave, { merge: true });
       }
@@ -589,17 +595,13 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
             {filteredProducts.length > 0 && (
                 <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
                     <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-200"><tr>
-                            <th scope="col" className="px-6 py-3">Imagen</th>
-                            <th scope="col" className="px-6 py-3">Nombre</th>
-                            <th scope="col" className="px-6 py-3">Categoría</th>
-                            <th scope="col" className="px-6 py-3">Precio</th>
-                            <th scope="col" className="px-6 py-3">Stock</th>
-                            <th scope="col" className="px-6 py-3 text-center">Salsas</th>
-                            <th scope="col" className="px-6 py-3 text-center">Destacado Manual</th>
-                            <th scope="col" className="px-6 py-3 text-center">Acciones</th>
-                        </tr></thead>
-                        <tbody>{filteredProducts.map((product) => { // Usar filteredProducts aquí
+                        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-200">
+                            <tr>
+                                <th scope="col" className="px-6 py-3">Imagen</th><th scope="col" className="px-6 py-3">Nombre</th><th scope="col" className="px-6 py-3">Categoría</th><th scope="col" className="px-6 py-3">Precio</th><th scope="col" className="px-6 py-3">Stock</th><th scope="col" className="px-6 py-3 text-center">Salsas</th><th scope="col" className="px-6 py-3 text-center">Sabores</th><th scope="col" className="px-6 py-3 text-center">Destacado Manual</th><th scope="col" className="px-6 py-3 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredProducts.map((product) => { // Usar filteredProducts aquí
                                 const isManuallyFeatured = manualFeaturedProductIds.includes(product.id);
                                 return (
                                     <tr key={product.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
@@ -611,19 +613,19 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
                                                     <ImageOff size={24} />
                                                 </div>
                                             )}
-                                        </td>
-                                        <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-gray-100">{product.name}</td>
-                                        <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{product.category || 'N/A'}</td>
-                                        <td className="px-6 py-4 text-gray-700 dark:text-gray-300">${Math.floor(product.precio || 0)}</td>
-                                        <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{product.stock}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 text-center">
+                                        </td><td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-gray-100">{product.name}</td><td className="px-6 py-4 text-gray-700 dark:text-gray-300">{product.category || 'N/A'}</td><td className="px-6 py-4 text-gray-700 dark:text-gray-300">${Math.floor(product.precio || 0)}</td><td className="px-6 py-4 text-gray-700 dark:text-gray-300">{product.stock}</td><td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 text-center">
                                             {product.category === 'Pastas' && product.sauces && product.sauces.length > 0 ? (
                                                 <List size={20} className="inline-block text-blue-500" title="Tiene salsas" />
                                             ) : (
                                                 '-'
                                             )}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                                        </td><td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 text-center">
+                                            {product.category === 'Pastas' && product.flavors && product.flavors.length > 0 ? (
+                                                <List size={20} className="inline-block text-purple-500" title="Tiene sabores" />
+                                            ) : (
+                                                '-'
+                                            )}
+                                        </td><td className="px-6 py-4 whitespace-nowrap text-center">
                                                 <button
                                                     onClick={() => handleToggleManualFeatured(product.id, isManuallyFeatured)}
                                                     className={`p-2 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2
@@ -634,8 +636,7 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
                                                 >
                                                     <Star size={20} className={isManuallyFeatured ? "fill-current" : ""} />
                                                 </button>
-                                            </td>
-                                        <td className="px-6 py-4 text-center whitespace-nowrap">
+                                            </td><td className="px-6 py-4 text-center whitespace-nowrap">
                                             <button
                                                 onClick={() => handleEditProduct(product)}
                                                 className="font-medium text-blue-600 dark:text-blue-400 hover:underline mr-3"
@@ -653,7 +654,8 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
                                         </td>
                                     </tr>
                                 );
-                            })}</tbody>
+                            })}
+                        </tbody>
                     </table>
                 </div>
             )}
@@ -702,31 +704,19 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
             {orders.length > 0 && (
                 <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
                     <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-200"><tr>
-                            <th scope="col" className="px-6 py-3">ID Orden</th>
-                            <th scope="col" className="px-6 py-3">Cliente</th>
-                            <th scope="col" className="px-6 py-3">Total</th>
-                            <th scope="col" className="px-6 py-3">Método de Pago</th>
-                            <th scope="col" className="px-6 py-3">Envío</th>
-                            <th scope="col" className="px-6 py-3">Tipo Pedido</th>
-                            <th scope="col" className="px-6 py-3">Hora Pedido</th>
-                            <th scope="col" className="px-6 py-3">Estado</th>
-                            <th scope="col" className="px-6 py-3 text-center">Acciones</th>
-                        </tr></thead>
-                        <tbody>{orders.map((order) => (
+                        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-200">
+                            <tr>
+                                <th scope="col" className="px-6 py-3">ID Orden</th><th scope="col" className="px-6 py-3">Cliente</th><th scope="col" className="px-6 py-3">Total</th><th scope="col" className="px-6 py-3">Método de Pago</th><th scope="col" className="px-6 py-3">Envío</th><th scope="col" className="px-6 py-3">Tipo Pedido</th><th scope="col" className="px-6 py-3">Hora Pedido</th><th scope="col" className="px-6 py-3">Estado</th><th scope="col" className="px-6 py-3 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {orders.map((order) => (
                                 <tr key={order.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
                                     <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-gray-100">
                                         {order.id.substring(0, 8)}...
-                                    </td>
-                                    <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{order.customerInfo?.name || 'N/A'}</td>
-                                    <td className="px-6 py-4 text-gray-700 dark:text-gray-300">${Math.floor(order.total || 0)}</td>
-                                    <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{order.paymentMethod === 'cash' ? 'Efectivo' : 'Mercado Pago'}</td>
-                                    <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{order.deliveryMethod === 'pickup' ? 'Retiro' : 'Delivery'}</td>
-                                    <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{order.orderType === 'immediate' ? 'Inmediato' : 'Reserva'}</td>
-                                    <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
+                                    </td><td className="px-6 py-4 text-gray-700 dark:text-gray-300">{order.customerInfo?.name || 'N/A'}</td><td className="px-6 py-4 text-gray-700 dark:text-gray-300">${Math.floor(order.total || 0)}</td><td className="px-6 py-4 text-gray-700 dark:text-gray-300">{order.paymentMethod === 'cash' ? 'Efectivo' : 'Mercado Pago'}</td><td className="px-6 py-4 text-gray-700 dark:text-gray-300">{order.deliveryMethod === 'pickup' ? 'Retiro' : 'Delivery'}</td><td className="px-6 py-4 text-gray-700 dark:text-gray-300">{order.orderType === 'immediate' ? 'Inmediato' : 'Reserva'}</td><td className="px-6 py-4 text-gray-700 dark:text-gray-300">
                                       {order.orderTime ? new Date(order.orderTime).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
-                                    </td>
-                                    <td className="px-6 py-4">
+                                    </td><td className="px-6 py-4">
                                         <select
                                             value={order.status}
                                             onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
@@ -743,103 +733,12 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
                                             <option value="completed">Completado</option>
                                             <option value="cancelled">Cancelado</option>
                                         </select>
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
+                                    </td><td className="px-6 py-4 text-center">
                                         {/* Puedes añadir un botón para ver detalles de la orden si lo necesitas */}
                                     </td>
                                 </tr>
-                            ))}</tbody>
-                    </table>
-                </div>
-            )}
-          </div>
-        )}
-
-        {/* Gestión de Reseñas */}
-        {activeTab === 'reviews' && (
-          <div>
-            <h2 className="text-3xl font-bold text-gray-100 mb-6">Gestión de Reseñas</h2>
-            <div className="flex flex-col sm:flex-row gap-4 items-center mb-6">
-                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                    <select
-                        value={reviewFilterRating}
-                        onChange={(e) => setReviewFilterRating(e.target.value)}
-                        className="px-4 py-2 rounded-md bg-gray-800 border border-gray-700 text-white focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 w-full sm:w-auto"
-                    >
-                        <option value="all">Todas las Calificaciones</option>
-                        <option value="5">5 Estrellas</option>
-                        <option value="4">4 Estrellas</option>
-                        <option value="3">3 Estrellas</option>
-                        <option value="2">2 Estrellas</option>
-                        <option value="1">1 Estrella</option>
-                    </select>
-                    <select
-                        value={reviewFilterStatus}
-                        onChange={(e) => setReviewFilterStatus(e.target.value)}
-                        className="px-4 py-2 rounded-md bg-gray-800 border border-gray-700 text-white focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 w-full sm:w-auto"
-                    >
-                        <option value="all">Todos los Estados</option>
-                        <option value="pending">Pendiente</option>
-                        <option value="approved">Aprobado</option>
-                    </select>
-                </div>
-            </div>
-
-            {reviews.length === 0 && (
-                <p className="text-center text-gray-400 mt-10">No hay reseñas para mostrar con los filtros actuales.</p>
-            )}
-
-            {reviews.length > 0 && (
-                <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
-                    <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-200"><tr>
-                            <th scope="col" className="px-6 py-3">Producto</th>
-                            <th scope="col" className="px-6 py-3">Calificación</th>
-                            <th scope="col" className="px-6 py-3">Comentario</th>
-                            <th scope="col" className="px-6 py-3">Usuario (ID)</th>
-                            <th scope="col" className="px-6 py-3">Fecha</th>
-                            <th scope="col" className="px-6 py-3">Estado</th>
-                            <th scope="col" className="px-6 py-3 text-center">Acciones</th>
-                        </tr></thead>
-                        <tbody>{reviews.map((review) => (
-                                <tr key={review.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
-                                    <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-gray-100">
-                                        {products.find(p => p.id === review.productId)?.name || 'Producto Desconocido'}
-                                    </td>
-                                    <td className="px-6 py-4 flex items-center">
-                                        {[...Array(5)].map((_, i) => (
-                                            <Star key={i} size={16} className={i < review.rating ? "text-yellow-400 fill-current" : "text-gray-300"} />
-                                        ))}
-                                    </td>
-                                    <td className="px-6 py-4 max-w-xs overflow-hidden text-ellipsis text-gray-700 dark:text-gray-300">{review.comment || 'Sin comentario'}</td>
-                                    <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{review.userId ? review.userId.substring(0, 8) + '...' : 'Anónimo'}</td>
-                                    <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{review.timestamp ? new Date(review.timestamp.toDate()).toLocaleDateString() : 'N/A'}</td>
-                                    <td className="px-6 py-4">
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                                            ${review.approved ? 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-100' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-100'}`}>
-                                            {review.approved ? 'Aprobado' : 'Pendiente'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-center whitespace-nowrap">
-                                        {!review.approved && (
-                                            <button
-                                                onClick={() => handleApproveReview(review.id)}
-                                                className="font-medium text-green-600 dark:text-green-400 hover:underline mr-3"
-                                                aria-label={`Aprobar reseña de ${review.userId ? review.userId.substring(0, 5) : 'Anónimo'}`}
-                                            >
-                                                <CheckCheck size={20} className="inline-block" />
-                                            </button>
-                                        )}
-                                        <button
-                                            onClick={() => handleRejectReview(review.id)}
-                                            className="font-medium text-red-600 dark:text-red-400 hover:underline"
-                                            aria-label={`Eliminar reseña de ${review.userId ? review.userId.substring(0, 5) : 'Anónimo'}`}
-                                        >
-                                            <Trash2 size={20} className="inline-block" />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}</tbody>
+                            ))}
+                        </tbody>
                     </table>
                 </div>
             )}
@@ -914,6 +813,8 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
           onClose={() => setIsProductFormOpen(false)}
           onSave={handleSaveProduct}
           showNotification={showNotification}
+          firebaseConfig={firebaseConfig} // AÑADIDO: Pasando firebaseConfig
+          appId={appId} // appId ya está disponible
         />
       )}
 
