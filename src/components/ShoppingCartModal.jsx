@@ -13,35 +13,74 @@ function ShoppingCartModal({
 }) {
   const total = useMemo(() => {
     return Math.floor(cartItems.reduce((sum, item) => {
-      // Suma el precio base del producto más el precio de la salsa, el sabor y el tamaño si existen
-      const itemPrice = item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0) + (item.selectedSize?.price || 0); // NUEVO: Sumar precio del tamaño
+      let itemBasePrice = item.precio || 0;
+
+      // Si es empanada/canastita, el precio base depende del tipo de cantidad
+      if (['Empanadas y Canastitas'].includes(item.category) && item.selectedQuantityType) {
+        if (item.selectedQuantityType === 'docena') {
+          itemBasePrice = item.precioDocena || (item.precio * 12);
+        } else if (item.selectedQuantityType === 'mediaDocena') {
+          itemBasePrice = item.precioMediaDocena || (item.precio * 6);
+        } else { // 'unidad'
+          itemBasePrice = item.precio || 0;
+        }
+      } else if (item.category === 'Pizzas' && item.selectedCombinedPizza) {
+        // Si es una pizza combinada, toma el precio más alto
+        itemBasePrice = Math.max(item.precio || 0, item.selectedCombinedPizza.precio || 0);
+      }
+
+      const itemPrice = itemBasePrice + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0) + (item.selectedSize?.price || 0);
       return sum + itemPrice * item.quantity;
     }, 0));
   }, [cartItems]);
 
   const handleIncrease = useCallback((item) => {
-    // Pass item.id, item.selectedSauce?.id, item.selectedFlavor?.id, and item.selectedSize?.id to identify unique cart item
-    if (item.quantity < item.stock) {
-      onIncreaseQuantity(item.id, item.selectedSauce?.id, item.selectedFlavor?.id, item.selectedSize?.id); // NUEVO: Pasar sizeId
-    } else {
-      if (showNotification) {
-        showNotification(`¡Atención! No puedes añadir más unidades de "${item.name}". Solo quedan ${item.stock} disponibles.`, 'warning', 3000);
+    // Pass item.id, item.selectedSauce?.id, item.selectedFlavor?.id, item.selectedSize?.id, item.selectedCombinedPizza?.id, item.selectedQuantityType, and item.combinedEmpanadaFlavors to identify unique cart item
+    // Calcular la cantidad total de unidades para la validación de stock
+    let unitsPerItem = 1;
+    if (['Empanadas y Canastitas'].includes(item.category)) {
+      if (item.selectedQuantityType === 'mediaDocena') {
+        unitsPerItem = 6;
+      } else if (item.selectedQuantityType === 'docena') {
+        unitsPerItem = 12;
       }
+    }
+    const currentTotalUnits = item.quantity * unitsPerItem;
+    const newTotalUnitsIfIncreased = (item.quantity + 1) * unitsPerItem;
+
+    // Para combinaciones de empanadas, el stock se refiere al número de "paquetes" (media docena/docena)
+    if (item.combinedEmpanadaFlavors) {
+        if (item.quantity + 1 <= item.stock) { // Validar contra el stock del "paquete"
+            onIncreaseQuantity(item.id, item.selectedSauce?.id, item.selectedFlavor?.id, item.selectedSize?.id, item.selectedCombinedPizza?.id, item.selectedQuantityType, item.combinedEmpanadaFlavors);
+        } else {
+            if (showNotification) {
+                showNotification(`¡Atención! No puedes añadir más ${item.selectedQuantityType === 'docena' ? 'docenas' : 'medias docenas'} de "${item.name}". Solo quedan ${item.stock - item.quantity} disponibles.`, 'warning', 3000);
+            }
+        }
+    } else {
+        // Lógica de stock para productos normales (unidades)
+        if (newTotalUnitsIfIncreased <= item.stock) {
+            onIncreaseQuantity(item.id, item.selectedSauce?.id, item.selectedFlavor?.id, item.selectedSize?.id, item.selectedCombinedPizza?.id, item.selectedQuantityType, item.combinedEmpanadaFlavors);
+        } else {
+            if (showNotification) {
+                showNotification(`¡Atención! No puedes añadir más unidades de "${item.name}". Solo quedan ${item.stock - currentTotalUnits} disponibles.`, 'warning', 3000);
+            }
+        }
     }
   }, [onIncreaseQuantity, showNotification]);
 
   const handleDecrease = useCallback((item) => {
-    // Pass item.id, item.selectedSauce?.id, item.selectedFlavor?.id, and item.selectedSize?.id to identify unique cart item
+    // Pass item.id, item.selectedSauce?.id, item.selectedFlavor?.id, item.selectedSize?.id, item.selectedCombinedPizza?.id, item.selectedQuantityType, and item.combinedEmpanadaFlavors to identify unique cart item
     // If quantity is 1 and trying to decrease, remove the product
     if (item.quantity > 1) {
-      onDecreaseQuantity(item.id, item.selectedSauce?.id, item.selectedFlavor?.id, item.selectedSize?.id); // NUEVO: Pasar sizeId
+      onDecreaseQuantity(item.id, item.selectedSauce?.id, item.selectedFlavor?.id, item.selectedSize?.id, item.selectedCombinedPizza?.id, item.selectedQuantityType, item.combinedEmpanadaFlavors);
     } else {
-      onRemoveItem(item.id, item.selectedSauce?.id, item.selectedFlavor?.id, item.selectedSize?.id); // NUEVO: Pasar sizeId
+      onRemoveItem(item.id, item.selectedSauce?.id, item.selectedFlavor?.id, item.selectedSize?.id, item.selectedCombinedPizza?.id, item.selectedQuantityType, item.combinedEmpanadaFlavors);
     }
   }, [onDecreaseQuantity, onRemoveItem]);
 
-  const handleRemove = useCallback((id, sauceId = null, flavorId = null, sizeId = null) => { // NUEVO: Recibir sizeId
-    onRemoveItem(id, sauceId, flavorId, sizeId); // NUEVO: Pasar sizeId
+  const handleRemove = useCallback((id, sauceId = null, flavorId = null, sizeId = null, combinedPizzaId = null, quantityType = null, combinedEmpanadaFlavors = {}) => {
+    onRemoveItem(id, sauceId, flavorId, sizeId, combinedPizzaId, quantityType, combinedEmpanadaFlavors);
   }, [onRemoveItem]);
 
   const handleClear = useCallback(() => {
@@ -99,12 +138,27 @@ function ShoppingCartModal({
             {/* Lista de ítems del carrito: adaptable con flex-wrap y espaciado */}
             <div className="flex-grow overflow-y-auto pr-2 custom-scrollbar space-y-4">
               {cartItems.map((item) => {
-                // Calcular subtotal del ítem, incluyendo precio de salsa, sabor y tamaño
-                const itemPrice = item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0) + (item.selectedSize?.price || 0); // NUEVO: Sumar precio del tamaño
+                let itemBasePrice = item.precio || 0;
+
+                // Si es empanada/canastita, el precio base depende del tipo de cantidad
+                if (['Empanadas y Canastitas'].includes(item.category) && item.selectedQuantityType) {
+                  if (item.selectedQuantityType === 'docena') {
+                    itemBasePrice = item.precioDocena || (item.precio * 12);
+                  } else if (item.selectedQuantityType === 'mediaDocena') {
+                    itemBasePrice = item.precioMediaDocena || (item.precio * 6);
+                  } else { // 'unidad'
+                    itemBasePrice = item.precio || 0;
+                  }
+                } else if (item.category === 'Pizzas' && item.selectedCombinedPizza) {
+                  // Si es una pizza combinada, toma el precio más alto
+                  itemBasePrice = Math.max(item.precio || 0, item.selectedCombinedPizza.precio || 0);
+                }
+
+                const itemPrice = itemBasePrice + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0) + (item.selectedSize?.price || 0);
                 const itemSubtotal = Math.floor(itemPrice * item.quantity);
                 return (
-                  // Añadido item.selectedSize?.id a la key para unicidad
-                  <div key={item.id + (item.selectedSauce?.id || '') + (item.selectedFlavor?.id || '') + (item.selectedSize?.id || '')} className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gray-50 dark:bg-gray-700 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-600">
+                  // Añadido item.selectedCombinedPizza?.id, item.selectedQuantityType y combinedEmpanadaFlavors a la key para unicidad
+                  <div key={item.id + (item.selectedSauce?.id || '') + (item.selectedFlavor?.id || '') + (item.selectedSize?.id || '') + (item.selectedCombinedPizza?.id || '') + (item.selectedQuantityType || '') + JSON.stringify(item.combinedEmpanadaFlavors || {})} className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gray-50 dark:bg-gray-700 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-600">
                     {/* Contenido del ítem: imagen y detalles */}
                     <div className="flex items-center flex-grow w-full sm:w-auto mb-4 sm:mb-0">
                       <img
@@ -119,8 +173,40 @@ function ShoppingCartModal({
                         }}
                       />
 
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-lg truncate">{item.name}</h3>
+                      <div className="flex-1 min-w-0"> {/* min-w-0 es crucial para que el contenido se encoja */}
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-lg"> {/* Eliminado 'truncate' aquí para permitir que se envuelva */}
+                          {item.name}
+                          {item.selectedCombinedPizza && (
+                            <span className="text-sm text-gray-500 dark:text-gray-400 block sm:inline-block sm:ml-2">
+                              (Mitad {item.name} + Mitad {item.selectedCombinedPizza.name})
+                            </span>
+                          )}
+                          {['Empanadas y Canastitas'].includes(item.category) && item.selectedQuantityType && (
+                            <span className="text-sm text-gray-500 dark:text-gray-400 block sm:inline-block sm:ml-2">
+                              ({item.selectedQuantityType === 'docena' ? 'Docena' : item.selectedQuantityType === 'mediaDocena' ? 'Media Docena' : 'Unidad'})
+                            </span>
+                          )}
+                        </h3>
+                        {item.combinedEmpanadaFlavors && Object.keys(item.combinedEmpanadaFlavors).length > 0 && (
+                            <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                <p className="font-medium">Sabores:</p>
+                                <ul className="list-disc list-inside ml-2">
+                                    {Object.keys(item.combinedEmpanadaFlavors).map(flavorId => {
+                                        // Aquí necesitarías tener acceso al nombre del producto individual por su ID
+                                        // Para simplificar, asumiremos que el nombre del producto individual está disponible en item.allProducts (si lo pasas)
+                                        // O que puedes buscarlo en tu lista global de productos.
+                                        // Por ahora, mostraré el ID y la cantidad.
+                                        // Si necesitas el nombre real, el item de carrito debería contenerlo o el modal debería tener acceso a `allProducts`
+                                        const individualFlavorProduct = item.allProducts?.find(p => p.id === flavorId); // Asumiendo que item.allProducts se pasa
+                                        return (
+                                            <li key={flavorId}>
+                                                {individualFlavorProduct ? individualFlavorProduct.name : `ID: ${flavorId}`} x{item.combinedEmpanadaFlavors[flavorId]}
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            </div>
+                        )}
                         <p className="text-gray-600 dark:text-gray-300 text-sm">
                           Precio base: ${Math.floor(item.precio)}
                         </p>
@@ -134,7 +220,7 @@ function ShoppingCartModal({
                             Salsa: {item.selectedSauce.name} {item.selectedSauce.isFree ? '(Gratis)' : `(+$${Math.floor(item.selectedSauce.price)})`}
                           </p>
                         )}
-                        {item.selectedSize && ( // NUEVO: Muestra el tamaño si existe
+                        {item.selectedSize && ( // Muestra el tamaño si existe
                           <p className="text-gray-600 dark:text-gray-300 text-sm">
                             Tamaño: {item.selectedSize.name} {item.selectedSize.price > 0 ? `(+$${Math.floor(item.selectedSize.price)})` : ''}
                           </p>
@@ -145,14 +231,14 @@ function ShoppingCartModal({
                         {item.stock <= 0 ? (
                           <p className="text-red-500 text-xs font-bold mt-1">¡Agotado!</p>
                         ) : (
-                          item.quantity > item.stock && (
-                            <p className="text-red-500 text-xs font-bold mt-1">Solo quedan {item.stock} unidades.</p>
+                          item.quantity > item.stock && ( // Esto es para el stock del "paquete" (media docena/docena)
+                            <p className="text-red-500 text-xs font-bold mt-1">Solo quedan {item.stock} paquetes.</p>
                           )
                         )}
                       </div>
                     </div>
                     {/* Controles de cantidad y botón de eliminar: adaptable para móviles */}
-                    <div className="flex items-center space-x-2 w-full sm:w-auto justify-end sm:justify-start">
+                    <div className="flex items-center space-x-2 w-full sm:w-auto justify-end sm:justify-start mt-4 sm:mt-0"> {/* Ajuste de margen y justificación */}
                       <button
                         onClick={() => handleDecrease(item)}
                         className="p-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300"
@@ -164,7 +250,7 @@ function ShoppingCartModal({
                       <button
                         onClick={() => handleIncrease(item)}
                         className={`p-2 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2
-                          ${item.quantity >= item.stock
+                          ${item.quantity >= item.stock // Validar contra el stock del "paquete"
                             ? 'bg-gray-200 dark:bg-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed focus:ring-gray-300'
                             : 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-300'}`}
                         aria-label={`Aumentar cantidad de ${item.name}`}
@@ -173,7 +259,7 @@ function ShoppingCartModal({
                         <Plus size={20} />
                       </button>
                       <button
-                        onClick={() => handleRemove(item.id, item.selectedSauce?.id, item.selectedFlavor?.id, item.selectedSize?.id)} // NUEVO: Pasar sizeId
+                        onClick={() => handleRemove(item.id, item.selectedSauce?.id, item.selectedFlavor?.id, item.selectedSize?.id, item.selectedCombinedPizza?.id, item.selectedQuantityType, item.combinedEmpanadaFlavors)}
                         className="p-2 bg-red-100 hover:bg-red-200 dark:bg-red-800 dark:hover:bg-red-700 text-red-600 dark:text-red-200 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-300 ml-4"
                         aria-label={`Eliminar ${item.name} del carrito`}
                       >

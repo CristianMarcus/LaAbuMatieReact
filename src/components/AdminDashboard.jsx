@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, getDocs, writeBatch, where, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, getDocs, writeBatch, where, setDoc, Timestamp } from 'firebase/firestore'; // Importar Timestamp
 import ProductForm from './ProductForm';
 // Importaciones de iconos de Lucide React: Aseguramos que todos los iconos usados en este archivo (incluyendo los de los componentes anidados) estén aquí.
 import {
   Edit, Trash2, PlusCircle, ShoppingBag, Box, LogOut, Filter, Home, MessageSquare, BarChart2,
   DollarSign, ListOrdered, TrendingUp, Eraser, UploadCloud, AlertTriangle, BadgeAlert, Star,
-  Loader2, CheckCheck, List, ImageOff, Search, Tags, XCircle, Save // XCircle y Save son cruciales para CategoryManagementModal
+  Loader2, CheckCheck, List, ImageOff, Search, Tags, XCircle, Save, CalendarDays, Clock, RefreshCw // Nuevo icono para resetear filtros
 } from 'lucide-react';
 
 
@@ -85,9 +85,12 @@ const JsonImportModal = ({ onClose, onImport, showNotification, isImporting }) =
         <p className="text-gray-600 dark:text-gray-300 mb-4">
           Sube un archivo JSON con tus productos. El formato debe ser un array de objetos de producto.
         </p>
+        {/* CORRECCIÓN: Añadido id y name al input file */}
         <input
           type="file"
           accept=".json"
+          id="jsonFileInput" // Añadido ID
+          name="jsonFile"    // Añadido Name
           ref={fileInputRef}
           onChange={handleFileChange}
           className="w-full text-gray-700 dark:text-gray-50 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900 dark:file:text-blue-200 dark:hover:file:bg-blue-800"
@@ -193,8 +196,11 @@ const CategoryManagementModal = ({ isOpen, onClose, categories, onSaveCategory, 
         <div className="mb-6">
           <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">Añadir Nueva Categoría</h3>
           <div className="flex gap-2">
+            {/* CORRECCIÓN: Añadido id y name al input de nueva categoría */}
             <input
               type="text"
+              id="newCategoryName" // Añadido ID
+              name="newCategoryName" // Añadido Name
               value={newCategoryName}
               onChange={(e) => setNewCategoryName(e.target.value)}
               placeholder="Nombre de la nueva categoría"
@@ -218,8 +224,11 @@ const CategoryManagementModal = ({ isOpen, onClose, categories, onSaveCategory, 
               {categories.map(category => (
                 <li key={category.id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-3 rounded-md shadow-sm">
                   {editingCategoryId === category.id ? (
+                    /* CORRECCIÓN: Añadido id y name al input de edición de categoría */
                     <input
                       type="text"
+                      id={`editCategory-${category.id}`} // ID único
+                      name={`editCategory-${category.id}`} // Name único
                       value={editingCategoryName}
                       onChange={(e) => setEditingCategoryName(e.target.value)}
                       className="flex-grow px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-600 border border-gray-300 dark:border-gray-500 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
@@ -286,6 +295,15 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
   // Estado para filtros de órdenes
   const [orderFilterStatus, setOrderFilterStatus] = useState('all'); // 'all', 'pending', 'processing', 'completed', 'cancelled'
   const [orderFilterDelivery, setOrderFilterDelivery] = useState('all'); // 'all', 'pickup', 'delivery'
+  // NUEVOS ESTADOS PARA FILTROS DE FECHA/HORA
+  const [orderFilterDate, setOrderFilterDate] = useState(''); // Formato 'YYYY-MM-DD'
+  const [orderFilterDayOfWeek, setOrderFilterDayOfWeek] = useState('all'); // 'all', '0' (Domingo) - '6' (Sábado)
+  const [orderFilterTimeFrom, setOrderFilterTimeFrom] = useState(''); // Formato 'HH:MM'
+
+  // NUEVOS ESTADOS PARA FILTROS DE MÉTRICAS (RANGO DE FECHAS)
+  const [metricsStartDate, setMetricsStartDate] = useState(''); // Fecha de inicio para las métricas
+  const [metricsEndDate, setMetricsEndDate] = useState('');     // Fecha de fin para las métricas
+
 
   // Estado para filtros de reseñas
   const [reviewFilterRating, setReviewFilterRating] = useState('all'); // 'all', '1', '2', '3', '4', '5'
@@ -293,6 +311,7 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
 
   // Estado para productos destacados manualmente
   const [manualFeaturedProductIds, setManualFeaturedProductIds] = useState([]);
+
 
   // Estados para filtros de productos
   const [productSearchTerm, setProductSearchTerm] = useState('');
@@ -345,8 +364,11 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
   useEffect(() => {
     if (!db) return;
     const ordersColRef = collection(db, `artifacts/${appId}/public/data/orders`);
-    let q = query(ordersColRef);
+    // Siempre traemos las órdenes ordenadas por fecha de creación descendente para el filtrado en cliente
+    // y para asegurar que los rangos de fecha funcionen correctamente.
+    let q = query(ordersColRef); // No aplicar filtros de fecha/hora directamente aquí
 
+    // Aplicar filtros de estado y envío en la consulta de Firestore
     if (orderFilterStatus !== 'all') {
       q = query(q, where('status', '==', orderFilterStatus));
     }
@@ -355,14 +377,58 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
     }
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const ordersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setOrders(ordersData.sort((a, b) => (b.createdAt?.toDate() || 0) - (a.createdAt?.toDate() || 0))); // Order by createdAt
+      let ordersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      // --- FILTRADO EN EL CLIENTE (para filtros complejos de fecha/hora) ---
+
+      // 1. Filtrado por fecha específica (día, mes, año)
+      if (orderFilterDate) {
+        const selectedDate = new Date(orderFilterDate);
+        selectedDate.setHours(0, 0, 0, 0); // Inicio del día seleccionado
+        const nextDay = new Date(selectedDate);
+        nextDay.setDate(selectedDate.getDate() + 1); // Inicio del día siguiente
+
+        ordersData = ordersData.filter(order => {
+          const orderTimestamp = order.createdAt?.toDate(); // Convertir Timestamp de Firestore a Date
+          if (!orderTimestamp) return false;
+          return orderTimestamp >= selectedDate && orderTimestamp < nextDay;
+        });
+      }
+
+      // 2. Filtrado por día de la semana
+      if (orderFilterDayOfWeek !== 'all') {
+        const targetDay = parseInt(orderFilterDayOfWeek); // 0 para Domingo, 1 para Lunes, etc.
+        ordersData = ordersData.filter(order => {
+          const orderTimestamp = order.createdAt?.toDate();
+          if (!orderTimestamp) return false;
+          return orderTimestamp.getDay() === targetDay;
+        });
+      }
+
+      // 3. Filtrado por hora a partir de
+      if (orderFilterTimeFrom) {
+        const [hours, minutes] = orderFilterTimeFrom.split(':').map(Number);
+        ordersData = ordersData.filter(order => {
+          const orderTimestamp = order.createdAt?.toDate();
+          if (!orderTimestamp) return false;
+          const orderHours = orderTimestamp.getHours();
+          const orderMinutes = orderTimestamp.getMinutes();
+
+          // Compara la hora: si la hora de la orden es mayor, o si es la misma hora y los minutos son mayores o iguales
+          if (orderHours > hours) return true;
+          if (orderHours === hours && orderMinutes >= minutes) return true;
+          return false;
+        });
+      }
+
+      // Ordenar por fecha de creación (más reciente primero) después de todos los filtros
+      setOrders(ordersData.sort((a, b) => (b.createdAt?.toDate() || 0) - (a.createdAt?.toDate() || 0)));
     }, (err) => {
       console.error("Error al cargar órdenes:", err);
       showNotification("Error al cargar órdenes.", "error");
     });
-    return () => unsubscribe();
-  }, [db, appId, orderFilterStatus, orderFilterDelivery, showNotification]);
+    // Las dependencias del useEffect ahora incluyen los nuevos estados de filtro para que se re-ejecute la consulta
+  }, [db, appId, orderFilterStatus, orderFilterDelivery, orderFilterDate, orderFilterDayOfWeek, orderFilterTimeFrom, showNotification]);
 
   // Cargar reseñas
   useEffect(() => {
@@ -496,6 +562,24 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
     }
   }, [db, appId, showNotification]);
 
+  // NUEVO: Función para eliminar una orden individual
+  const handleDeleteOrder = useCallback((orderId) => {
+    setConfirmMessage('¿Estás seguro de que quieres eliminar esta orden? Esta acción es irreversible.');
+    setConfirmAction(() => async () => {
+      try {
+        await deleteDoc(doc(db, `artifacts/${appId}/public/data/orders`, orderId));
+        showNotification('Orden eliminada con éxito.', 'success');
+      } catch (e) {
+        console.error("Error al eliminar orden:", e);
+        showNotification(`Error al eliminar orden: ${e.message}`, 'error');
+      } finally {
+        setIsConfirmModalOpen(false);
+      }
+    });
+    setIsConfirmModalOpen(true);
+  }, [db, appId, showNotification]);
+
+
   const handleClearAllOrders = useCallback(() => {
     setConfirmMessage('¿Estás seguro de que quieres eliminar TODAS las órdenes completadas y canceladas?');
     setConfirmAction(() => async () => {
@@ -559,6 +643,8 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
         const productToSave = {
           ...productData,
           precio: Number(productData.precio) || 0,
+          precioMediaDocena: productData.precioMediaDocena ? Number(productData.precioMediaDocena) : null, // Asegura que se guarde como número o null
+          precioDocena: productData.precioDocena ? Number(productData.precioDocena) : null, // Asegura que se guarde como número o null
           stock: Number(productData.stock) || 0,
           sauces: productData.category === 'Pastas' && Array.isArray(productData.sauces)
             ? productData.sauces.map(s => ({
@@ -639,33 +725,82 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
     return currentProducts;
   }, [products, productSearchTerm, productCategoryFilter]);
 
+  // Función para restablecer los filtros de fecha de las métricas
+  const handleResetMetricsDates = useCallback(() => {
+    setMetricsStartDate('');
+    setMetricsEndDate('');
+  }, []);
 
-  // Métricas calculadas
+
+  // Métricas calculadas (AHORA CON FILTROS DE FECHA)
+  const filteredOrdersForMetrics = useMemo(() => {
+    let filtered = orders;
+    if (metricsStartDate) {
+      const start = new Date(metricsStartDate);
+      start.setHours(0, 0, 0, 0);
+      filtered = filtered.filter(order => {
+        const orderDate = order.createdAt?.toDate();
+        return orderDate && orderDate >= start;
+      });
+    }
+    if (metricsEndDate) {
+      const end = new Date(metricsEndDate);
+      end.setHours(23, 59, 59, 999); // Incluir todo el día final
+      filtered = filtered.filter(order => {
+        const orderDate = order.createdAt?.toDate();
+        return orderDate && orderDate <= end;
+      });
+    }
+    return filtered;
+  }, [orders, metricsStartDate, metricsEndDate]);
+
+  const filteredReviewsForMetrics = useMemo(() => {
+    let filtered = reviews;
+    if (metricsStartDate) {
+      const start = new Date(metricsStartDate);
+      start.setHours(0, 0, 0, 0);
+      filtered = filtered.filter(review => {
+        const reviewDate = review.timestamp?.toDate();
+        return reviewDate && reviewDate >= start;
+      });
+    }
+    if (metricsEndDate) {
+      const end = new Date(metricsEndDate);
+      end.setHours(23, 59, 59, 999); // Incluir todo el día final
+      filtered = filtered.filter(review => {
+        const reviewDate = review.timestamp?.toDate();
+        return reviewDate && reviewDate <= end;
+      });
+    }
+    return filtered;
+  }, [reviews, metricsStartDate, metricsEndDate]);
+
+
   const totalSales = useMemo(() => {
-    return orders.filter(order => order.status === 'completed').reduce((sum, order) => sum + order.total, 0);
-  }, [orders]);
+    return filteredOrdersForMetrics.filter(order => order.status === 'completed').reduce((sum, order) => sum + order.total, 0);
+  }, [filteredOrdersForMetrics]);
 
   const totalPendingOrders = useMemo(() => {
-    return orders.filter(order => order.status === 'pending' || order.status === 'processing').length;
-  }, [orders]);
+    return filteredOrdersForMetrics.filter(order => order.status === 'pending' || order.status === 'processing').length;
+  }, [filteredOrdersForMetrics]);
 
-  const totalProducts = products.length;
+  const totalProducts = products.length; // No se filtra por fecha, es el total actual
 
   const averageRating = useMemo(() => {
-    const approvedReviews = reviews.filter(review => review.approved);
+    const approvedReviews = filteredReviewsForMetrics.filter(review => review.approved);
     if (approvedReviews.length === 0) return 'N/A';
     const sum = approvedReviews.reduce((acc, review) => acc + review.rating, 0);
     return (sum / approvedReviews.length).toFixed(1);
-  }, [reviews]);
+  }, [filteredReviewsForMetrics]);
 
-  // NUEVAS MÉTRICAS
+  // Las métricas de stock son sobre el inventario actual, no sobre un rango de fechas.
   const lowStockProducts = useMemo(() => {
     return products.filter(product => product.stock > 0 && product.stock <= 5).length;
   }, [products]);
 
   const totalApprovedReviews = useMemo(() => {
-    return reviews.filter(review => review.approved).length;
-  }, [reviews]);
+    return filteredReviewsForMetrics.filter(review => review.approved).length;
+  }, [filteredReviewsForMetrics]);
 
 
   if (loading) {
@@ -786,15 +921,21 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
             <div className="flex flex-col sm:flex-row gap-4 items-center mb-6">
                 <div className="relative w-full sm:w-1/2">
                     <Search size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    {/* CORRECCIÓN: Añadido id y name al input de búsqueda de productos */}
                     <input
                         type="text"
+                        id="productSearch" // Añadido ID
+                        name="productSearch" // Añadido Name
                         placeholder="Buscar por nombre o descripción..."
                         value={productSearchTerm}
                         onChange={(e) => setProductSearchTerm(e.target.value)}
                         className="w-full pl-10 pr-4 py-2 rounded-md bg-gray-800 border border-gray-700 text-white focus:ring-purple-500 focus:border-purple-500 transition-all duration-200"
                     />
                 </div>
+                {/* CORRECCIÓN: Añadido id y name al select de categoría de productos */}
                 <select
+                    id="productCategoryFilter" // Añadido ID
+                    name="productCategoryFilter" // Añadido Name
                     value={productCategoryFilter}
                     onChange={(e) => setProductCategoryFilter(e.target.value)}
                     className="px-4 py-2 rounded-md bg-gray-800 border border-gray-700 text-white focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 w-full sm:w-auto"
@@ -844,7 +985,18 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
                                         </td>
                                         <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-gray-100">{product.name}</td>
                                         <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{product.category || 'N/A'}</td>
-                                        <td className="px-6 py-4 text-gray-700 dark:text-gray-300">${Math.floor(product.precio || 0)}</td>
+                                        <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
+                                          {/* Mostrar precios de docena/media docena si existen, sino precio unitario */}
+                                          {['Empanadas', 'Canastitas'].includes(product.category) ? (
+                                            <>
+                                              {product.precioDocena > 0 && `$${Math.floor(product.precioDocena)} (Doc.) `}
+                                              {product.precioMediaDocena > 0 && `$${Math.floor(product.precioMediaDocena)} (1/2 Doc.) `}
+                                              {product.precio > 0 && `$${Math.floor(product.precio)} (Unid.)`}
+                                            </>
+                                          ) : (
+                                            `$${Math.floor(product.precio || 0)}`
+                                          )}
+                                        </td>
                                         <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{product.stock}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 text-center">
                                             {product.category === 'Pastas' && product.sauces && product.sauces.length > 0 ? (
@@ -911,7 +1063,10 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
             <h2 className="text-3xl font-bold text-gray-100 mb-6">Gestión de Órdenes</h2>
             <div className="flex flex-col sm:flex-row gap-4 items-center mb-6">
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    {/* CORRECCIÓN: Añadido id y name al select de estado de orden */}
                     <select
+                        id="orderStatusFilter" // Añadido ID
+                        name="orderStatusFilter" // Añadido Name
                         value={orderFilterStatus}
                         onChange={(e) => setOrderFilterStatus(e.target.value)}
                         className="px-4 py-2 rounded-md bg-gray-800 border border-gray-700 text-white focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 w-full sm:w-auto"
@@ -922,7 +1077,10 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
                         <option value="completed">Completado</option>
                         <option value="cancelled">Cancelado</option>
                     </select>
+                    {/* CORRECCIÓN: Añadido id y name al select de tipo de envío de orden */}
                     <select
+                        id="orderDeliveryFilter" // Añadido ID
+                        name="orderDeliveryFilter" // Añadido Name
                         value={orderFilterDelivery}
                         onChange={(e) => setOrderFilterDelivery(e.target.value)}
                         className="px-4 py-2 rounded-md bg-gray-800 border border-gray-700 text-white focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 w-full sm:w-auto"
@@ -939,6 +1097,57 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
                     <Eraser size={20} /> Limpiar Órdenes Finalizadas
                 </button>
             </div>
+
+            {/* NUEVOS FILTROS DE FECHA Y HORA */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="relative">
+                    <label htmlFor="orderDateFilter" className="sr-only">Filtrar por fecha específica</label> {/* SR-Only label */}
+                    <CalendarDays size={20} className="absolute left-3 top-1/2 -translate-y-1/2 mt-2 text-gray-400" />
+                    {/* CORRECCIÓN: Añadido id y name al input de fecha de orden */}
+                    <input
+                        type="date"
+                        id="orderDateFilter" // Añadido ID
+                        name="orderDateFilter" // Añadido Name
+                        value={orderFilterDate}
+                        onChange={(e) => setOrderFilterDate(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 rounded-md bg-gray-800 border border-gray-700 text-white focus:ring-purple-500 focus:border-purple-500 transition-all duration-200"
+                        title="Filtrar por fecha específica"
+                    />
+                </div>
+                <div className="relative">
+                    <label htmlFor="orderTimeFilter" className="sr-only">Filtrar órdenes a partir de esta hora</label> {/* SR-Only label */}
+                    <Clock size={20} className="absolute left-3 top-1/2 -translate-y-1/2 mt-2 text-gray-400" />
+                    {/* CORRECCIÓN: Añadido id y name al input de hora de orden */}
+                    <input
+                        type="time"
+                        id="orderTimeFilter" // Añadido ID
+                        name="orderTimeFilter" // Añadido Name
+                        value={orderFilterTimeFrom}
+                        onChange={(e) => setOrderFilterTimeFrom(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 rounded-md bg-gray-800 border border-gray-700 text-white focus:ring-purple-500 focus:border-purple-500 transition-all duration-200"
+                        title="Filtrar órdenes a partir de esta hora"
+                    />
+                </div>
+                {/* CORRECCIÓN: Añadido id y name al select de día de la semana de orden */}
+                <select
+                    id="orderDayOfWeekFilter" // Añadido ID
+                    name="orderDayOfWeekFilter" // Añadido Name
+                    value={orderFilterDayOfWeek}
+                    onChange={(e) => setOrderDayOfWeek(e.target.value)}
+                    className="px-4 py-2 rounded-md bg-gray-800 border border-gray-700 text-white focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 w-full"
+                    title="Filtrar por día de la semana"
+                >
+                    <option value="all">Cualquier Día</option>
+                    <option value="1">Lunes</option>
+                    <option value="2">Martes</option>
+                    <option value="3">Miércoles</option>
+                    <option value="4">Jueves</option>
+                    <option value="5">Viernes</option>
+                    <option value="6">Sábado</option>
+                    <option value="0">Domingo</option>
+                </select>
+            </div>
+
 
             {orders.length === 0 && (
                 <p className="text-center text-gray-400 mt-10">No hay órdenes para mostrar con los filtros actuales.</p>
@@ -960,7 +1169,10 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
                                     </td><td className="px-6 py-4 text-gray-700 dark:text-gray-300">{order.customerInfo?.name || 'N/A'}</td><td className="px-6 py-4 text-gray-700 dark:text-gray-300">${Math.floor(order.total || 0)}</td><td className="px-6 py-4 text-gray-700 dark:text-gray-300">{order.paymentMethod === 'cash' ? 'Efectivo' : 'Mercado Pago'}</td><td className="px-6 py-4 text-gray-700 dark:text-gray-300">{order.deliveryMethod === 'pickup' ? 'Retiro' : 'Delivery'}</td><td className="px-6 py-4 text-gray-700 dark:text-gray-300">{order.orderType === 'immediate' ? 'Inmediato' : 'Reserva'}</td><td className="px-6 py-4 text-gray-700 dark:text-gray-300">
                                       {order.orderTime ? new Date(order.orderTime).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
                                     </td><td className="px-6 py-4">
+                                        {/* CORRECCIÓN: Añadido id y name al select de estado de orden en la tabla */}
                                         <select
+                                            id={`orderStatus-${order.id}`} // ID único para cada select
+                                            name={`orderStatus-${order.id}`} // Name único para cada select
                                             value={order.status}
                                             onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
                                             className={`px-3 py-1 rounded-md text-sm font-semibold
@@ -977,7 +1189,13 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
                                             <option value="cancelled">Cancelado</option>
                                         </select>
                                     </td><td className="px-6 py-4 text-center">
-                                        {/* Puedes añadir un botón para ver detalles de la orden si lo necesitas */}
+                                        <button
+                                            onClick={() => handleDeleteOrder(order.id)}
+                                            className="font-medium text-red-600 dark:text-red-400 hover:underline"
+                                            aria-label={`Eliminar orden ${order.id.substring(0, 5)}`}
+                                        >
+                                            <Trash2 size={20} className="inline-block" />
+                                        </button>
                                     </td>
                                 </tr>
                             ))}
@@ -993,7 +1211,10 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
           <div>
             <h2 className="text-3xl font-bold text-gray-100 mb-6">Gestión de Reseñas</h2>
             <div className="flex flex-col sm:flex-row gap-4 items-center mb-6">
+                {/* CORRECCIÓN: Añadido id y name al select de estado de reseña */}
                 <select
+                    id="reviewStatusFilter" // Añadido ID
+                    name="reviewStatusFilter" // Añadido Name
                     value={reviewFilterStatus}
                     onChange={(e) => setReviewFilterStatus(e.target.value)}
                     className="px-4 py-2 rounded-md bg-gray-800 border border-gray-700 text-white focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 w-full sm:w-auto"
@@ -1002,7 +1223,10 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
                     <option value="pending">Pendientes</option>
                     <option value="approved">Aprobadas</option>
                 </select>
+                {/* CORRECCIÓN: Añadido id y name al select de calificación de reseña */}
                 <select
+                    id="reviewRatingFilter" // Añadido ID
+                    name="reviewRatingFilter" // Añadido Name
                     value={reviewFilterRating}
                     onChange={(e) => setReviewFilterRating(e.target.value)}
                     className="px-4 py-2 rounded-md bg-gray-800 border border-gray-700 text-white focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 w-full sm:w-auto"
@@ -1088,6 +1312,52 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
         {activeTab === 'metrics' && (
           <div>
             <h2 className="text-3xl font-bold text-gray-100 mb-6">Métricas del Negocio</h2>
+
+            {/* SECCIÓN DE FILTROS PARA MÉTRICAS */}
+            <div className="bg-gray-800 p-6 rounded-lg shadow-md mb-6">
+              <h3 className="text-xl font-bold text-gray-100 mb-4 flex items-center gap-2">
+                <Filter size={24} className="text-purple-400" /> Filtrar Métricas por Fecha
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <div className="relative">
+                  <label htmlFor="metricsStartDate" className="block text-sm font-medium text-gray-400 mb-1">Desde:</label>
+                  <CalendarDays size={20} className="absolute left-3 top-1/2 -translate-y-1/2 mt-2 text-gray-400" />
+                  {/* CORRECCIÓN: Añadido name al input de fecha de inicio de métricas */}
+                  <input
+                    type="date"
+                    id="metricsStartDate"
+                    name="metricsStartDate" // Añadido Name
+                    value={metricsStartDate}
+                    onChange={(e) => setMetricsStartDate(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 rounded-md bg-gray-700 border border-gray-600 text-white focus:ring-purple-500 focus:border-purple-500 transition-all duration-200"
+                    title="Fecha de inicio para las métricas"
+                  />
+                </div>
+                <div className="relative">
+                  <label htmlFor="metricsEndDate" className="block text-sm font-medium text-gray-400 mb-1">Hasta:</label>
+                  <CalendarDays size={20} className="absolute left-3 top-1/2 -translate-y-1/2 mt-2 text-gray-400" />
+                  {/* CORRECCIÓN: Añadido name al input de fecha de fin de métricas */}
+                  <input
+                    type="date"
+                    id="metricsEndDate"
+                    name="metricsEndDate" // Añadido Name
+                    value={metricsEndDate}
+                    onChange={(e) => setMetricsEndDate(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 rounded-md bg-gray-700 border border-gray-600 text-white focus:ring-purple-500 focus:border-purple-500 transition-all duration-200"
+                    title="Fecha de fin para las métricas"
+                  />
+                </div>
+                <button
+                  onClick={handleResetMetricsDates}
+                  className="w-full px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-md shadow-md transition-colors duration-200 flex items-center justify-center gap-2 mt-4 md:mt-0"
+                  title="Restablecer filtros de fecha"
+                >
+                  <RefreshCw size={20} /> Resetear Fechas
+                </button>
+              </div>
+            </div>
+
+            {/* CUADROS DE MÉTRICAS */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-gray-800 p-6 rounded-lg shadow-md flex items-center justify-between">
                 <div>
@@ -1105,7 +1375,7 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
               </div>
               <div className="bg-gray-800 p-6 rounded-lg shadow-md flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-400">Total Productos</p>
+                  <p className="text-sm text-gray-400">Total Productos (Actual)</p> {/* Clarificación de métrica */}
                   <p className="text-2xl font-bold text-blue-400">{totalProducts}</p>
                 </div>
                 <Box size={40} className="text-blue-500 opacity-50" />
@@ -1118,17 +1388,17 @@ const AdminDashboard = ({ db, appId, onLogout, showNotification, onGoToHome, has
                   </p>
                   {averageRating === 'N/A' && (
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      (No hay reseñas aprobadas para calcular el promedio)
+                      (No hay reseñas aprobadas en el rango)
                     </p>
                   )}
                 </div>
                 <TrendingUp size={40} className="text-purple-500 opacity-50" />
               </div>
 
-              {/* NUEVAS MÉTRICAS */}
+              {/* MÉTRICAS ADICIONALES */}
               <div className="bg-gray-800 p-6 rounded-lg shadow-md flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-400">Productos con Bajo Stock</p>
+                  <p className="text-sm text-gray-400">Productos con Bajo Stock (Actual)</p> {/* Clarificación de métrica */}
                   <p className="text-2xl font-bold text-orange-400">{lowStockProducts}</p>
                 </div>
                 <AlertTriangle size={40} className="text-orange-500 opacity-50" />

@@ -5,13 +5,15 @@ const ProductForm = ({ product, onClose, onSave, showNotification, categories })
   const [formData, setFormData] = useState({
     name: '',
     descripcion: '',
-    precio: '',
+    precio: '', // Precio por unidad (o base para pizzas)
+    precioMediaDocena: '', // NUEVO: Precio para media docena
+    precioDocena: '', // NUEVO: Precio para docena
     category: '',
     stock: '',
     image: '', // URL de la imagen
     sauces: [], // Campo para salsas
     flavors: [], // Campo para sabores
-    sizes: [], // NUEVO: Campo para tamaños
+    sizes: [], // Campo para tamaños
   });
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
@@ -24,12 +26,14 @@ const ProductForm = ({ product, onClose, onSave, showNotification, categories })
         name: product.name || '',
         descripcion: product.descripcion || '',
         precio: product.precio || '',
+        precioMediaDocena: product.precioMediaDocena || '', // NUEVO: Inicializar
+        precioDocena: product.precioDocena || '', // NUEVO: Inicializar
         category: product.category || '',
         stock: product.stock || 0,
         image: product.image || '',
         sauces: product.sauces || [],
         flavors: product.flavors || [],
-        sizes: product.sizes || [], // NUEVO: Inicializar tamaños
+        sizes: product.sizes || [],
       });
       setImagePreview(product.image || '');
     } else {
@@ -37,12 +41,14 @@ const ProductForm = ({ product, onClose, onSave, showNotification, categories })
         name: '',
         descripcion: '',
         precio: '',
+        precioMediaDocena: '', // NUEVO: Inicializar para nuevo producto
+        precioDocena: '', // NUEVO: Inicializar para nuevo producto
         category: '',
         stock: 0,
         image: '',
         sauces: [],
         flavors: [],
-        sizes: [], // NUEVO: Inicializar tamaños para nuevo producto
+        sizes: [],
       });
       setImagePreview('');
     }
@@ -52,7 +58,7 @@ const ProductForm = ({ product, onClose, onSave, showNotification, categories })
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'precio' || name === 'stock' ? Number(value) : value, // Convertir a número si es precio o stock
+      [name]: ['precio', 'stock', 'precioMediaDocena', 'precioDocena'].includes(name) ? Number(value) : value, // Convertir a número si es precio, stock, media docena o docena
     }));
   }, []);
 
@@ -121,7 +127,7 @@ const ProductForm = ({ product, onClose, onSave, showNotification, categories })
     }));
   }, []);
 
-  // NUEVO: Manejadores para la gestión de tamaños
+  // Manejadores para la gestión de tamaños
   const handleSizeChange = useCallback((index, field, value) => {
     setFormData(prev => {
       const newSizes = [...prev.sizes];
@@ -210,6 +216,9 @@ const ProductForm = ({ product, onClose, onSave, showNotification, categories })
     const dataToSave = {
       ...formData,
       precio: Number(formData.precio),
+      // CAMBIO CLAVE AQUÍ: La condición ahora es 'Empanadas y Canastitas'
+      precioMediaDocena: formData.category === 'Empanadas y Canastitas' ? Number(formData.precioMediaDocena) : null, // Guarda solo si es Empanadas/Canastitas
+      precioDocena: formData.category === 'Empanadas y Canastitas' ? Number(formData.precioDocena) : null, // Guarda solo si es Empanadas/Canastitas
       stock: Number(formData.stock),
       image: imageUrl, // Guarda la URL real de la imagen (de Cloudinary)
       // Solo guarda salsas y sabores si la categoría es 'Pastas'
@@ -227,7 +236,7 @@ const ProductForm = ({ product, onClose, onSave, showNotification, categories })
             name: f.name,
           }))
         : [],
-      // NUEVO: Solo guarda tamaños si la categoría es 'Papas Fritas'
+      // Solo guarda tamaños si la categoría es 'Papas Fritas'
       sizes: formData.category === 'Papas Fritas' && Array.isArray(formData.sizes)
         ? formData.sizes.map(s => ({
             id: s.id,
@@ -299,7 +308,7 @@ const ProductForm = ({ product, onClose, onSave, showNotification, categories })
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="precio" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                Precio ($)
+                Precio por Unidad ($)
               </label>
               <input
                 type="number"
@@ -332,6 +341,45 @@ const ProductForm = ({ product, onClose, onSave, showNotification, categories })
             </div>
           </div>
 
+          {/* NUEVOS CAMPOS PARA PRECIOS DE DOCENA/MEDIA DOCENA */}
+          {/* CAMBIO CLAVE AQUÍ: La condición ahora es 'Empanadas y Canastitas' */}
+          {formData.category === 'Empanadas y Canastitas' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="precioMediaDocena" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                  Precio Media Docena ($)
+                </label>
+                <input
+                  type="number"
+                  id="precioMediaDocena"
+                  name="precioMediaDocena"
+                  value={formData.precioMediaDocena}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 bg-white text-gray-900 dark:bg-gray-700 dark:text-white transition-colors duration-200"
+                  min="0"
+                  step="0.01"
+                  autoComplete="off"
+                />
+              </div>
+              <div>
+                <label htmlFor="precioDocena" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                  Precio Docena ($)
+                </label>
+                <input
+                  type="number"
+                  id="precioDocena"
+                  name="precioDocena"
+                  value={formData.precioDocena}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 bg-white text-gray-900 dark:bg-gray-700 dark:text-white transition-colors duration-200"
+                  min="0"
+                  step="0.01"
+                  autoComplete="off"
+                />
+              </div>
+            </div>
+          )}
+
           <div>
             <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
               Categoría
@@ -357,27 +405,21 @@ const ProductForm = ({ product, onClose, onSave, showNotification, categories })
             <div className="mb-4 p-4 border border-gray-300 dark:border-gray-600 rounded-md">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Sabores Disponibles</h3>
               {formData.flavors.length === 0 && (
-                <p className="text-gray-600 dark:text-gray-400 mb-3">No hay sabores añadidos. Haz clic en "Añadir Sabor" para agregar uno.</p>
+                <p className="text-gray-600 dark:text-gray-300 text-sm mb-3">No hay sabores definidos. Añade uno.</p>
               )}
               {formData.flavors.map((flavor, index) => (
-                <div key={flavor.id || index} className="flex flex-col sm:flex-row gap-2 mb-3 p-3 bg-gray-100 dark:bg-gray-700 rounded-md items-center">
-                  <div className="flex-grow w-full sm:w-auto">
-                    <label htmlFor={`flavor-name-${index}`} className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Nombre del Sabor</label>
-                    <input
-                      type="text"
-                      id={`flavor-name-${index}`}
-                      name={`flavor-name-${index}`} // Añadido name
-                      value={flavor.name}
-                      onChange={(e) => handleFlavorChange(index, 'name', e.target.value)}
-                      placeholder="Ej: Ricota y Verdura"
-                      className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white text-gray-900 dark:bg-gray-600 dark:text-white"
-                      autoComplete="off"
-                    />
-                  </div>
+                <div key={flavor.id || index} className="flex items-center gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={flavor.name}
+                    onChange={(e) => handleFlavorChange(index, 'name', e.target.value)}
+                    placeholder="Nombre del sabor"
+                    className="flex-grow px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:text-white"
+                  />
                   <button
                     type="button"
                     onClick={() => handleRemoveFlavor(index)}
-                    className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors duration-200 flex-shrink-0"
+                    className="p-1 bg-red-500 hover:bg-red-600 text-white rounded-full"
                     aria-label="Eliminar sabor"
                   >
                     <Trash2 size={16} />
@@ -387,7 +429,7 @@ const ProductForm = ({ product, onClose, onSave, showNotification, categories })
               <button
                 type="button"
                 onClick={handleAddFlavor}
-                className="mt-3 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md shadow-sm transition-colors duration-200 flex items-center gap-2"
+                className="mt-3 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-md flex items-center gap-1"
               >
                 <PlusCircle size={18} /> Añadir Sabor
               </button>
@@ -399,53 +441,39 @@ const ProductForm = ({ product, onClose, onSave, showNotification, categories })
             <div className="mb-4 p-4 border border-gray-300 dark:border-gray-600 rounded-md">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Salsas Disponibles</h3>
               {formData.sauces.length === 0 && (
-                <p className="text-gray-600 dark:text-gray-400 mb-3">No hay salsas añadidas. Haz clic en "Añadir Salsa" para agregar una.</p>
+                <p className="text-gray-600 dark:text-gray-300 text-sm mb-3">No hay salsas definidas. Añade una.</p>
               )}
               {formData.sauces.map((sauce, index) => (
-                <div key={sauce.id || index} className="flex flex-col sm:flex-row gap-2 mb-3 p-3 bg-gray-100 dark:bg-gray-700 rounded-md items-center">
-                  <div className="flex-grow w-full sm:w-auto">
-                    <label htmlFor={`sauce-name-${index}`} className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Nombre</label>
-                    <input
-                      type="text"
-                      id={`sauce-name-${index}`}
-                      name={`sauce-name-${index}`} // Añadido name
-                      value={sauce.name}
-                      onChange={(e) => handleSauceChange(index, 'name', e.target.value)}
-                      placeholder="Nombre de la salsa"
-                      className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white text-gray-900 dark:bg-gray-600 dark:text-white"
-                      autoComplete="off"
-                    />
-                  </div>
-                  <div className="w-full sm:w-auto">
-                    <label htmlFor={`sauce-price-${index}`} className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Precio</label>
-                    <input
-                      type="number"
-                      id={`sauce-price-${index}`}
-                      name={`sauce-price-${index}`} // Añadido name
-                      value={sauce.price}
-                      onChange={(e) => handleSauceChange(index, 'price', e.target.value)}
-                      min="0"
-                      step="0.01"
-                      className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white text-gray-900 dark:bg-gray-600 dark:text-white"
-                      autoComplete="off"
-                    />
-                  </div>
-                  <div className="w-full sm:w-auto flex items-center mt-2 sm:mt-0">
+                <div key={sauce.id || index} className="flex items-center gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={sauce.name}
+                    onChange={(e) => handleSauceChange(index, 'name', e.target.value)}
+                    placeholder="Nombre de la salsa"
+                    className="flex-grow px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:text-white"
+                  />
+                  <input
+                    type="number"
+                    value={sauce.price}
+                    onChange={(e) => handleSauceChange(index, 'price', e.target.value)}
+                    min="0"
+                    step="0.01"
+                    placeholder="Precio"
+                    className="w-20 px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:text-white"
+                  />
+                  <label className="flex items-center text-sm text-gray-700 dark:text-gray-200">
                     <input
                       type="checkbox"
-                      id={`sauce-free-${index}`}
-                      name={`sauce-free-${index}`} // Añadido name
                       checked={sauce.isFree}
                       onChange={(e) => handleSauceChange(index, 'isFree', e.target.checked)}
-                      className="mr-2"
-                      autoComplete="off"
+                      className="mr-1"
                     />
-                    <label htmlFor={`sauce-free-${index}`} className="text-sm font-medium text-gray-700 dark:text-gray-200">Gratis</label>
-                  </div>
+                    Gratis
+                  </label>
                   <button
                     type="button"
                     onClick={() => handleRemoveSauce(index)}
-                    className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors duration-200 flex-shrink-0"
+                    className="p-1 bg-red-500 hover:bg-red-600 text-white rounded-full"
                     aria-label="Eliminar salsa"
                   >
                     <Trash2 size={16} />
@@ -455,53 +483,42 @@ const ProductForm = ({ product, onClose, onSave, showNotification, categories })
               <button
                 type="button"
                 onClick={handleAddSauce}
-                className="mt-3 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md shadow-sm transition-colors duration-200 flex items-center gap-2"
+                className="mt-3 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-md flex items-center gap-1"
               >
                 <PlusCircle size={18} /> Añadir Salsa
               </button>
             </div>
           )}
 
-          {/* NUEVO: SECCIÓN PARA TAMAÑOS (solo si la categoría es Papas Fritas) */}
+          {/* SECCIÓN PARA TAMAÑOS (solo si la categoría es Papas Fritas) */}
           {formData.category === 'Papas Fritas' && (
             <div className="mb-4 p-4 border border-gray-300 dark:border-gray-600 rounded-md">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Tamaños Disponibles</h3>
               {formData.sizes.length === 0 && (
-                <p className="text-gray-600 dark:text-gray-400 mb-3">No hay tamaños añadidos. Haz clic en "Añadir Tamaño" para agregar uno.</p>
+                <p className="text-gray-600 dark:text-gray-300 text-sm mb-3">No hay tamaños definidos. Añade uno.</p>
               )}
               {formData.sizes.map((size, index) => (
-                <div key={size.id || index} className="flex flex-col sm:flex-row gap-2 mb-3 p-3 bg-gray-100 dark:bg-gray-700 rounded-md items-center">
-                  <div className="flex-grow w-full sm:w-auto">
-                    <label htmlFor={`size-name-${index}`} className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Nombre del Tamaño</label>
-                    <input
-                      type="text"
-                      id={`size-name-${index}`}
-                      name={`size-name-${index}`}
-                      value={size.name}
-                      onChange={(e) => handleSizeChange(index, 'name', e.target.value)}
-                      placeholder="Ej: Chico, Mediano, Grande"
-                      className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white text-gray-900 dark:bg-gray-600 dark:text-white"
-                      autoComplete="off"
-                    />
-                  </div>
-                  <div className="w-full sm:w-auto">
-                    <label htmlFor={`size-price-${index}`} className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Precio Adicional</label>
-                    <input
-                      type="number"
-                      id={`size-price-${index}`}
-                      name={`size-price-${index}`}
-                      value={size.price}
-                      onChange={(e) => handleSizeChange(index, 'price', e.target.value)}
-                      min="0"
-                      step="0.01"
-                      className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white text-gray-900 dark:bg-gray-600 dark:text-white"
-                      autoComplete="off"
-                    />
-                  </div>
+                <div key={size.id || index} className="flex items-center gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={size.name}
+                    onChange={(e) => handleSizeChange(index, 'name', e.target.value)}
+                    placeholder="Nombre del tamaño"
+                    className="flex-grow px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:text-white"
+                  />
+                  <input
+                    type="number"
+                    value={size.price}
+                    onChange={(e) => handleSizeChange(index, 'price', e.target.value)}
+                    min="0"
+                    step="0.01"
+                    placeholder="Precio adicional"
+                    className="w-28 px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:text-white"
+                  />
                   <button
                     type="button"
                     onClick={() => handleRemoveSize(index)}
-                    className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors duration-200 flex-shrink-0"
+                    className="p-1 bg-red-500 hover:bg-red-600 text-white rounded-full"
                     aria-label="Eliminar tamaño"
                   >
                     <Trash2 size={16} />
@@ -511,35 +528,50 @@ const ProductForm = ({ product, onClose, onSave, showNotification, categories })
               <button
                 type="button"
                 onClick={handleAddSize}
-                className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md shadow-sm transition-colors duration-200 flex items-center gap-2"
+                className="mt-3 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-md flex items-center gap-1"
               >
                 <PlusCircle size={18} /> Añadir Tamaño
               </button>
             </div>
           )}
 
-
           <div>
             <label htmlFor="image" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-              Imagen del Producto
+              Imagen (URL o Subir)
             </label>
             <input
-              type="file"
+              type="text"
               id="image"
-              name="image" // Añadido name
+              name="image"
+              value={formData.image}
+              onChange={handleChange}
+              placeholder="URL de la imagen"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 bg-white text-gray-900 dark:bg-gray-700 dark:text-white transition-colors duration-200 mb-2"
+              autoComplete="off"
+            />
+            <input
+              type="file"
+              id="imageUpload"
+              name="imageUpload"
               accept="image/*"
               onChange={handleImageChange}
-              className="w-full text-gray-900 dark:text-gray-200 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 dark:file:bg-red-900 dark:file:text-red-200 dark:hover:file:bg-red-800"
-              autoComplete="off" // Añadido autocomplete
+              className="w-full text-sm text-gray-700 dark:text-gray-200 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-gray-700 dark:file:text-gray-200 dark:hover:file:bg-gray-600"
             />
-            {(imagePreview && !isUploadingImage) && (
-              <div className="mt-4 flex flex-col items-center">
-                <img src={imagePreview} alt="Previsualización" className="max-w-xs h-auto rounded-lg shadow-md" />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Previsualización de la imagen.</p>
+            {imagePreview && (
+              <div className="mt-4 relative">
+                <img src={imagePreview} alt="Previsualización" className="max-w-xs h-auto rounded-md shadow-md" />
+                <button
+                  type="button"
+                  onClick={() => { setImageFile(null); setImagePreview(''); setFormData(prev => ({ ...prev, image: '' })); }}
+                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                  aria-label="Eliminar imagen"
+                >
+                  <XCircle size={20} />
+                </button>
               </div>
             )}
             {isUploadingImage && (
-              <div className="mt-4 flex items-center text-red-600 dark:text-red-400">
+              <div className="mt-4 flex items-center text-blue-500 dark:text-blue-400">
                 <Loader size={20} className="animate-spin mr-2" /> Subiendo imagen...
               </div>
             )}

@@ -8,8 +8,23 @@ function OrderSummaryModal({ order, onClose, onBack, onContinue, showNotificatio
 
   const total = useMemo(() => {
     return Math.floor(itemsInOrder.reduce((sum, item) => {
-      // Suma el precio base del producto más el precio de la salsa, el sabor y el tamaño si existen
-      const itemPrice = item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0) + (item.selectedSize?.price || 0); // NUEVO: Sumar precio del tamaño
+      let itemBasePrice = item.precio || 0;
+
+      // Si es empanada/canastita, el precio base depende del tipo de cantidad
+      if (['Empanadas y Canastitas'].includes(item.category) && item.selectedQuantityType) {
+        if (item.selectedQuantityType === 'docena') {
+          itemBasePrice = item.precioDocena || (item.precio * 12);
+        } else if (item.selectedQuantityType === 'mediaDocena') {
+          itemBasePrice = item.precioMediaDocena || (item.precio * 6);
+        } else { // 'unidad'
+          itemBasePrice = item.precio || 0;
+        }
+      } else if (item.category === 'Pizzas' && item.selectedCombinedPizza) {
+        // Si es una pizza combinada, toma el precio más alto
+        itemBasePrice = Math.max(item.precio || 0, item.selectedCombinedPizza.precio || 0);
+      }
+
+      const itemPrice = itemBasePrice + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0) + (item.selectedSize?.price || 0);
       return sum + itemPrice * item.quantity;
     }, 0));
   }, [itemsInOrder]);
@@ -30,6 +45,19 @@ function OrderSummaryModal({ order, onClose, onBack, onContinue, showNotificatio
     }
     return 'No especificado';
   }, [deliveryMethod]);
+
+  // Formatear la hora del pedido para mostrar en el resumen
+  const formattedOrderTime = useMemo(() => {
+    if (customerInfo.orderTime) {
+      const date = new Date(customerInfo.orderTime);
+      if (customerInfo.orderType === 'immediate') {
+        return `Inmediato (Listo aprox. ${date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} hs)`;
+      } else if (customerInfo.orderType === 'reserved') {
+        return `Reservado para las ${date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} hs`;
+      }
+    }
+    return 'No especificado';
+  }, [customerInfo.orderTime, customerInfo.orderType]);
 
 
   return (
@@ -67,10 +95,7 @@ function OrderSummaryModal({ order, onClose, onBack, onContinue, showNotificatio
             )}
             <p className="text-gray-700 dark:text-gray-300">
               <strong>Tipo de Pedido:</strong>{' '}
-              {customerInfo.orderType === 'immediate'
-                ? 'Inmediato'
-                : `Reservado para las ${customerInfo.orderTime ? new Date(customerInfo.orderTime).toLocaleString() : 'hora no especificada'}`
-              }
+              {formattedOrderTime}
             </p>
             <p className="text-gray-700 dark:text-gray-300"><strong>Método de Pago:</strong> {customerInfo.paymentMethod === 'cash' ? 'Efectivo' : 'Mercado Pago'}</p>
             {customerInfo.paymentMethod === 'cash' && customerInfo.cashAmount && (
@@ -89,34 +114,81 @@ function OrderSummaryModal({ order, onClose, onBack, onContinue, showNotificatio
         <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm border border-gray-100 dark:border-gray-600">
           <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">Productos</h3>
           <ul className="space-y-2">
-            {itemsInOrder.map((item, index) => (
-              // Añadido item.selectedFlavor?.id y item.selectedSize?.id a la key para unicidad
-              <li key={item.id + (item.selectedSauce?.id || '') + (item.selectedFlavor?.id || '') + (item.selectedSize?.id || '') + index} className="flex justify-between items-center text-gray-700 dark:text-gray-300">
-                <div>
-                  {item.name} x {item.quantity}
-                  {item.selectedFlavor && ( // Muestra el sabor si existe
-                    <span className="text-sm text-gray-600 dark:text-gray-400 block sm:inline-block sm:ml-2">
-                      (Sabor: {item.selectedFlavor.name})
-                    </span>
-                  )}
-                  {item.selectedSauce && ( // Muestra la salsa si existe
-                    <span className="text-sm text-gray-600 dark:text-gray-400 block sm:inline-block sm:ml-2">
-                      (Salsa: {item.selectedSauce.name}
-                      {!item.selectedSauce.isFree && item.selectedSauce.price > 0 && ` +$${item.selectedSauce.price}`}
-                      )
-                    </span>
-                  )}
-                  {item.selectedSize && ( // NUEVO: Muestra el tamaño si existe
-                    <span className="text-sm text-gray-600 dark:text-gray-400 block sm:inline-block sm:ml-2">
-                      (Tamaño: {item.selectedSize.name}
-                      {item.selectedSize.price > 0 && ` +$${item.selectedSize.price}`}
-                      )
-                    </span>
-                  )}
-                </div>
-                <span className="font-semibold">${(item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0) + (item.selectedSize?.price || 0)) * item.quantity}</span> {/* NUEVO: Sumar precio del tamaño */}
-              </li>
-            ))}
+            {itemsInOrder.map((item, index) => {
+              let itemBasePrice = item.precio || 0;
+
+              // Si es empanada/canastita, el precio base depende del tipo de cantidad
+              if (['Empanadas y Canastitas'].includes(item.category) && item.selectedQuantityType) {
+                if (item.selectedQuantityType === 'docena') {
+                  itemBasePrice = item.precioDocena || (item.precio * 12);
+                } else if (item.selectedQuantityType === 'mediaDocena') {
+                  itemBasePrice = item.precioMediaDocena || (item.precio * 6);
+                } else { // 'unidad'
+                  itemBasePrice = item.precio || 0;
+                }
+              } else if (item.category === 'Pizzas' && item.selectedCombinedPizza) {
+                // Si es una pizza combinada, toma el precio más alto
+                itemBasePrice = Math.max(item.precio || 0, item.selectedCombinedPizza.precio || 0);
+              }
+
+              const itemPrice = itemBasePrice + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0) + (item.selectedSize?.price || 0);
+
+              return (
+                // Añadido item.selectedCombinedPizza?.id, item.selectedQuantityType y combinedEmpanadaFlavors a la key para unicidad
+                <li key={item.id + (item.selectedSauce?.id || '') + (item.selectedFlavor?.id || '') + (item.selectedSize?.id || '') + (item.selectedCombinedPizza?.id || '') + (item.selectedQuantityType || '') + JSON.stringify(item.combinedEmpanadaFlavors || {}) + index} className="flex justify-between items-center text-gray-700 dark:text-gray-300 flex-wrap">
+                  <div className="flex-1 min-w-0">
+                    {item.name}
+                    {item.selectedCombinedPizza && (
+                      <span className="text-sm text-gray-600 dark:text-gray-400 block sm:inline-block sm:ml-2">
+                        (Mitad {item.name} + Mitad {item.selectedCombinedPizza.name})
+                      </span>
+                    )}
+                    {['Empanadas y Canastitas'].includes(item.category) && item.selectedQuantityType && (
+                      <span className="text-sm text-gray-600 dark:text-gray-400 block sm:inline-block sm:ml-2">
+                        ({item.quantity} {item.selectedQuantityType === 'docena' ? 'Docena(s)' : item.selectedQuantityType === 'mediaDocena' ? 'Media(s) Docena(s)' : 'Unidad(es)'})
+                      </span>
+                    )}
+                    {!item.selectedCombinedPizza && !['Empanadas y Canastitas'].includes(item.category) && ` x ${item.quantity}`} {/* Solo muestra "x cantidad" si no es pizza combinada ni empanada/canastita combinada */}
+                    {item.selectedFlavor && ( // Muestra el sabor si existe
+                      <span className="text-sm text-gray-600 dark:text-gray-400 block sm:inline-block sm:ml-2">
+                        (Sabor: {item.selectedFlavor.name})
+                      </span>
+                    )}
+                    {item.selectedSauce && ( // Muestra la salsa si existe
+                      <span className="text-sm text-gray-600 dark:text-gray-400 block sm:inline-block sm:ml-2">
+                        (Salsa: {item.selectedSauce.name}
+                        {!item.selectedSauce.isFree && item.selectedSauce.price > 0 && ` +$${Math.floor(item.selectedSauce.price)}`}
+                        )
+                      </span>
+                    )}
+                    {item.selectedSize && ( // Muestra el tamaño si existe
+                      <span className="text-sm text-gray-600 dark:text-gray-400 block sm:inline-block sm:ml-2">
+                        (Tamaño: {item.selectedSize.name}
+                        {item.selectedSize.price > 0 && ` +$${Math.floor(item.selectedSize.price)}`}
+                        )
+                      </span>
+                    )}
+                    {item.combinedEmpanadaFlavors && Object.keys(item.combinedEmpanadaFlavors).length > 0 && (
+                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 w-full">
+                            <p className="font-medium">Sabores seleccionados:</p>
+                            <ul className="list-disc list-inside ml-2">
+                                {Object.keys(item.combinedEmpanadaFlavors).map(flavorId => {
+                                    // Utiliza item.allProducts para encontrar el nombre real del sabor
+                                    const foundFlavor = item.allProducts?.find(p => p.id === flavorId);
+                                    return (
+                                        <li key={flavorId}>
+                                            {foundFlavor ? foundFlavor.name : `ID: ${flavorId}`} x{item.combinedEmpanadaFlavors[flavorId]}
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </div>
+                    )}
+                  </div>
+                  <span className="font-semibold mt-2 sm:mt-0">${Math.floor(itemPrice * item.quantity)}</span>
+                </li>
+              );
+            })}
           </ul>
           <div className="border-t border-gray-200 dark:border-gray-600 pt-3 mt-3 flex justify-between items-center text-xl font-bold text-gray-900 dark:text-gray-100">
             <span>Total:</span>

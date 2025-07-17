@@ -34,6 +34,11 @@ import { Helmet, HelmetProvider } from 'react-helmet-async';
 function App() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isProductDetailsModalOpen, setIsProductDetailsModalOpen] = useState(false);
+  // NUEVOS ESTADOS para controlar el tipo de apertura del ProductDetailsModal
+  const [isCombinedPizzaSelection, setIsCombinedPizzaSelection] = useState(false);
+  const [isCombinedEmpanadaSelection, setIsCombinedEmpanadaSelection] = useState(false);
+  const [combinedType, setCombinedType] = useState(null); // 'half-dozen' o 'dozen'
+
   const [currentPage, setCurrentPage] = useState('home');
   const navigate = useNavigate();
 
@@ -103,7 +108,7 @@ function App() {
     sortedProductosPorCategoria,
     toggleCategoria,
     categoriasAbiertas,
-    allProducts,
+    allProducts, // <-- allProducts se obtiene aquí
   } = useProducts(db, actualFirebaseProjectId, isAuthReady, showNotification);
 
   const {
@@ -141,7 +146,7 @@ function App() {
     handleGoBackToCart,
     handleSendOrder,
     existingOrdersCount,
-  } = useOrderFlow(db, actualFirebaseProjectId, userId, cartItems, handleClearCart, showNotification, navigate, actualFirebaseProjectId);
+  } = useOrderFlow(db, actualFirebaseProjectId, userId, cartItems, handleClearCart, showNotification, navigate, actualFirebaseProjectId, allProducts); // PASANDO allProducts A useOrderFlow
 
   // --- Lógica de redirección y manejo de estado de administración ---
   useEffect(() => {
@@ -175,14 +180,22 @@ function App() {
 
 
   // --- Lógica para el modal de detalles del producto ---
-  const handleOpenProductDetails = useCallback((product) => {
+  // Ahora acepta un segundo argumento 'options' para controlar el modo de apertura
+  const handleOpenProductDetails = useCallback((product, options = {}) => {
     setSelectedProduct(product);
     setIsProductDetailsModalOpen(true);
+    setIsCombinedPizzaSelection(options.isCombinedPizzaSelection || false);
+    setIsCombinedEmpanadaSelection(options.isCombinedEmpanadaSelection || false);
+    setCombinedType(options.combinedType || null);
   }, []);
 
   const handleCloseProductDetails = useCallback(() => {
     setIsProductDetailsModalOpen(false);
     setSelectedProduct(null);
+    // Reiniciar los estados de combinación al cerrar el modal
+    setIsCombinedPizzaSelection(false);
+    setIsCombinedEmpanadaSelection(false);
+    setCombinedType(null);
   }, []);
 
   // --- Funciones de navegación del footer ---
@@ -479,7 +492,7 @@ function App() {
                               key={producto.id}
                               producto={producto}
                               onAddToCart={handleAddToCart}
-                              onOpenDetails={handleOpenProductDetails}
+                              onOpenDetails={handleOpenProductDetails} // Pasa la función actualizada
                               isFavorite={favoriteProductIds.includes(producto.id)}
                               onToggleFavorite={toggleFavorite}
                             />
@@ -530,7 +543,7 @@ function App() {
                                 key={producto.id}
                                 producto={producto}
                                 onAddToCart={handleAddToCart}
-                                onOpenDetails={handleOpenProductDetails}
+                                onOpenDetails={handleOpenProductDetails} // Pasa la función actualizada
                                 isFavorite={favoriteProductIds.includes(producto.id)}
                                 onToggleFavorite={toggleFavorite}
                               />
@@ -591,15 +604,16 @@ function App() {
                 <ProductDetailsModal
                   product={selectedProduct}
                   onClose={handleCloseProductDetails}
-                  // PASANDO selectedSauce, selectedFlavor, y selectedSize a handleAddToCart
-                  onAddToCart={(productToAdd, quantity, selectedSauce, selectedFlavor, selectedSize) =>
-                    handleAddToCart(productToAdd, quantity, selectedSauce, selectedFlavor, selectedSize)
-                  }
+                  onAddToCart={handleAddToCart}
                   db={db}
                   appId={actualFirebaseProjectId}
                   userId={userId}
                   showNotification={showNotification}
                   userProfile={userProfile}
+                  allProducts={allProducts} // PASADO: Necesario para la combinación de pizzas y empanadas
+                  isCombinedPizzaSelection={isCombinedPizzaSelection} // PASADO: Controla el modo de combinación de pizzas
+                  isCombinedEmpanadaSelection={isCombinedEmpanadaSelection} // NUEVO: PASADO: Controla el modo de combinación de empanadas
+                  combinedType={combinedType} // NUEVO: PASADO: Tipo de combinación de empanadas ('half-dozen' o 'dozen')
                 />
               )}
 

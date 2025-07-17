@@ -13,7 +13,8 @@ export const useOrderFlow = (
   handleClearCart,
   showNotification,
   navigate,
-  localProjectId
+  localProjectId,
+  allProducts // NUEVO: Necesario para obtener nombres de sabores de empanadas combinadas
 ) => {
   const [isCartModalOpen, setIsCartModalOpen] = useState(false);
   const [isOrderFormModalOpen, setIsOrderFormModalOpen] = useState(false);
@@ -54,8 +55,23 @@ export const useOrderFlow = (
   const handleViewSummaryFromCart = useCallback((items) => {
     setIsCartModalOpen(false);
     const totalForSummary = items.reduce((sum, item) => {
-      // Suma el precio base del producto más el precio de la salsa, el sabor y el TAMAÑO si existen
-      const itemPrice = item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0) + (item.selectedSize?.price || 0); // AHORA INCLUYE TAMAÑO
+      let itemBasePrice = item.precio || 0;
+
+      // Si es empanada/canastita, el precio base depende del tipo de cantidad
+      if (['Empanadas y Canastitas'].includes(item.category) && item.selectedQuantityType) {
+        if (item.selectedQuantityType === 'docena') {
+          itemBasePrice = item.precioDocena || (item.precio * 12);
+        } else if (item.selectedQuantityType === 'mediaDocena') {
+          itemBasePrice = item.precioMediaDocena || (item.precio * 6);
+        } else { // 'unidad'
+          itemBasePrice = item.precio || 0;
+        }
+      } else if (item.category === 'Pizzas' && item.selectedCombinedPizza) {
+        // Si es una pizza combinada, toma el precio más alto
+        itemBasePrice = Math.max(item.precio || 0, item.selectedCombinedPizza.precio || 0);
+      }
+
+      const itemPrice = itemBasePrice + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0) + (item.selectedSize?.price || 0);
       return sum + itemPrice * item.quantity;
     }, 0);
     setCurrentOrder({
@@ -64,15 +80,22 @@ export const useOrderFlow = (
         name: item.name,
         quantity: item.quantity,
         precio: item.precio,
+        precioMediaDocena: item.precioMediaDocena || null, // NUEVO
+        precioDocena: item.precioDocena || null, // NUEVO
         imageUrl: item.image || item.imageUrl,
         selectedSauce: item.selectedSauce || null,
         selectedFlavor: item.selectedFlavor || null,
-        selectedSize: item.selectedSize || null, // AHORA INCLUYE TAMAÑO
+        selectedSize: item.selectedSize || null,
+        selectedCombinedPizza: item.selectedCombinedPizza || null,
+        selectedQuantityType: item.selectedQuantityType || null, // NUEVO
+        combinedEmpanadaFlavors: item.combinedEmpanadaFlavors || null, // NUEVO: Pasar los sabores combinados
+        category: item.category, // Asegurarse de pasar la categoría
+        allProducts: allProducts, // Pasar allProducts para que OrderSummaryModal pueda resolver nombres
       })),
       total: totalForSummary,
     });
     setIsOrderSummaryModalOpen(true);
-  }, []);
+  }, [allProducts]); // Añadido allProducts a las dependencias
 
   // Manejador para continuar al formulario de pedido
   const handleContinueToForm = useCallback(() => {
@@ -114,11 +137,52 @@ export const useOrderFlow = (
         return;
       }
 
-      const finalOrderTime = (orderType === 'immediate' || !orderTime) ? new Date().toISOString() : orderTime;
-      
-      // CALCULAR EL TOTAL DEL PEDIDO INCLUYENDO SALSAS, SABORES Y TAMAÑOS
+      let finalOrderTime;
+      let orderTimeInfoWhatsapp = '';
+
+      if (orderType === 'immediate') {
+        const now = new Date();
+        // Determina el tiempo de preparación base (30 minutos)
+        let estimatedMinutes = 30;
+        // Si hay más de 3 órdenes pendientes/en preparación, aumenta el tiempo estimado
+        if (existingOrdersCount > 3) { // Puedes ajustar este umbral (ej: 3, 5, etc.)
+          estimatedMinutes = 40;
+        }
+        const estimatedDeliveryTime = new Date(now.getTime() + estimatedMinutes * 60 * 1000);
+        finalOrderTime = estimatedDeliveryTime.toISOString(); // Guardar como ISO string
+        const formattedEstimatedTime = estimatedDeliveryTime.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+        orderTimeInfoWhatsapp = `*Tipo de Pedido:* Inmediato (Listo aprox. ${formattedEstimatedTime} hs - ${estimatedMinutes} min)`;
+      } else if (orderType === 'reserved') {
+        finalOrderTime = orderTime; // Ya debería ser un ISO string o un formato compatible
+        const reservedDate = new Date(finalOrderTime);
+        const formattedReservedTime = reservedDate.toLocaleDateString('es-AR', {
+          day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+        orderTimeInfoWhatsapp = `*Tipo de Pedido:* Reserva para ${formattedReservedTime} hs`;
+      } else {
+        // Fallback si orderType no es ni 'immediate' ni 'reserved'
+        finalOrderTime = new Date().toISOString();
+        orderTimeInfoWhatsapp = '*Tipo de Pedido:* No especificado';
+      }
+
+      // CALCULAR EL TOTAL DEL PEDIDO INCLUYENDO SALSAS, SABORES, TAMAÑOS Y COMBINACIONES Y TIPO DE CANTIDAD
       const totalCalculated = cartItems.reduce((sum, item) => {
-        const itemPriceWithExtras = item.precio + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0) + (item.selectedSize?.price || 0); // AHORA INCLUYE TAMAÑO
+        let itemBasePrice = item.precio || 0;
+
+        // Si es empanada/canastita, el precio base depende del tipo de cantidad
+        if (['Empanadas y Canastitas'].includes(item.category) && item.selectedQuantityType) {
+          if (item.selectedQuantityType === 'docena') {
+            itemBasePrice = item.precioDocena || (item.precio * 12);
+          } else if (item.selectedQuantityType === 'mediaDocena') {
+            itemBasePrice = item.precioMediaDocena || (item.precio * 6);
+          } else { // 'unidad'
+            itemBasePrice = item.precio || 0;
+          }
+        } else if (item.category === 'Pizzas' && item.selectedCombinedPizza) {
+          itemBasePrice = Math.max(item.precio || 0, item.selectedCombinedPizza.precio || 0);
+        }
+
+        const itemPriceWithExtras = itemBasePrice + (item.selectedSauce?.price || 0) + (item.selectedFlavor?.price || 0) + (item.selectedSize?.price || 0);
         return sum + itemPriceWithExtras * item.quantity;
       }, 0);
       const totalForDisplay = Math.floor(totalCalculated); // Redondeo final para mostrar
@@ -144,53 +208,63 @@ export const useOrderFlow = (
         deliveryInfoWhatsapp = '*Método de Envío:* Delivery a domicilio (sin cargo)';
       }
 
-      let orderTimeInfoWhatsapp = '';
-      if (orderType === 'immediate') {
-        const now = new Date();
-        // Determina el tiempo de preparación base (30 minutos)
-        let estimatedMinutes = 30;
-        // Si hay más de 3 órdenes pendientes/en preparación, aumenta el tiempo estimado
-        if (existingOrdersCount > 3) { // Puedes ajustar este umbral (ej: 3, 5, etc.)
-          estimatedMinutes = 40;
-        }
-        const estimatedDeliveryTime = new Date(now.getTime() + estimatedMinutes * 60 * 1000);
-        const formattedEstimatedTime = estimatedDeliveryTime.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-        orderTimeInfoWhatsapp = `*Tipo de Pedido:* Inmediato (Listo aprox. ${formattedEstimatedTime} hs - ${estimatedMinutes} min)`;
-      } else if (orderType === 'reserved') {
-        const reservedDate = new Date(finalOrderTime);
-        const formattedReservedTime = reservedDate.toLocaleDateString('es-AR', {
-          day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-        });
-        orderTimeInfoWhatsapp = `*Tipo de Pedido:* Reserva para ${formattedReservedTime} hs`;
-      }
-
       // CONSTRUCCIÓN DEL DETALLE DE PRODUCTOS PARA WHATSAPP
       const orderDetailsForWhatsapp = cartItems.map(item => {
-        const itemBasePrice = item.precio;
+        let itemDisplayName = item.name;
+        let itemBasePrice = item.precio || 0;
+        let quantityLabel = `${item.quantity}x`; // Etiqueta de cantidad por defecto
+
+        // Si es una pizza combinada, ajusta el nombre y el precio base para el mensaje
+        if (item.category === 'Pizzas' && item.selectedCombinedPizza) {
+          itemDisplayName = `Pizza (Mitad ${item.name} + Mitad ${item.selectedCombinedPizza.name})`;
+          itemBasePrice = Math.max(item.precio || 0, item.selectedCombinedPizza.precio || 0); // Precio de la pizza de mayor valor
+        } else if (['Empanadas y Canastitas'].includes(item.category) && item.selectedQuantityType) {
+          // Si es empanada/canastita, ajusta el nombre y el precio base según el tipo de cantidad
+          if (item.selectedQuantityType === 'docena') {
+            itemBasePrice = item.precioDocena || (item.precio * 12);
+            quantityLabel = `${item.quantity}x Docena`;
+          } else if (item.selectedQuantityType === 'mediaDocena') {
+            itemBasePrice = item.precioMediaDocena || (item.precio * 6);
+            quantityLabel = `${item.quantity}x Media Docena`;
+          } else { // 'unidad'
+            itemBasePrice = item.precio || 0;
+            quantityLabel = `${item.quantity}x Unidad`;
+          }
+        }
+
         const saucePrice = item.selectedSauce?.price || 0;
         const flavorPrice = item.selectedFlavor?.price || 0;
-        const sizePrice = item.selectedSize?.price || 0; // OBTENER PRECIO DEL TAMAÑO
-        const itemTotalPrice = (itemBasePrice + saucePrice + flavorPrice + sizePrice) * item.quantity; // CALCULAR TOTAL CON TAMAÑO
+        const sizePrice = item.selectedSize?.price || 0;
+        const itemTotalPrice = (itemBasePrice + saucePrice + flavorPrice + sizePrice) * item.quantity;
 
-        let detail = `- ${item.quantity}x ${item.name}`;
+        let detail = `- ${quantityLabel} ${itemDisplayName}`;
         if (item.selectedFlavor) {
             detail += ` (Sabor: ${item.selectedFlavor.name})`;
         }
         if (item.selectedSauce) {
           detail += ` (Salsa: ${item.selectedSauce.name}`;
           if (!item.selectedSauce.isFree && item.selectedSauce.price > 0) {
-            detail += ` +$${Math.floor(item.selectedSauce.price)}`; // Redondeo aquí también
+            detail += ` +$${Math.floor(item.selectedSauce.price)}`;
           }
           detail += `)`;
         }
-        if (item.selectedSize) { // NUEVO: Añadir detalle del tamaño
+        if (item.selectedSize) {
           detail += ` (Tamaño: ${item.selectedSize.name}`;
           if (item.selectedSize.price > 0) {
             detail += ` +$${Math.floor(item.selectedSize.price)}`;
           }
           detail += `)`;
         }
-        detail += ` = $${Math.floor(itemTotalPrice)}`; // Redondeo final del subtotal del ítem
+        // NUEVO: Añadir detalles de sabores de empanadas combinadas
+        if (item.combinedEmpanadaFlavors && Object.keys(item.combinedEmpanadaFlavors).length > 0) {
+            const flavorDetails = Object.keys(item.combinedEmpanadaFlavors).map(flavorId => {
+                // Obtener el nombre del producto individual de allProducts
+                const individualProduct = allProducts?.find(p => p.id === flavorId);
+                return `${individualProduct ? individualProduct.name : `ID:${flavorId}`} x${item.combinedEmpanadaFlavors[flavorId]}`;
+            }).join(', ');
+            detail += ` [Sabores: ${flavorDetails}]`;
+        }
+        detail += ` = $${Math.floor(itemTotalPrice)}`;
         return detail;
       }).join('\n');
 
@@ -222,14 +296,59 @@ ${notes ? `\n*Notas del Cliente:* ${notes}` : ''}
 
       try {
         for (const item of cartItems) {
-          if (item.id) {
-            const productDocRef = doc(productsCollectionRef, item.id);
-            if (item.stock >= item.quantity) {
-              batch.update(productDocRef, {
-                stock: item.stock - item.quantity
-              });
+          // Si es una combinación de empanadas, actualiza el stock de los productos individuales
+          if (item.combinedEmpanadaFlavors && Object.keys(item.combinedEmpanadaFlavors).length > 0) {
+            for (const flavorId in item.combinedEmpanadaFlavors) {
+              const selectedCount = item.combinedEmpanadaFlavors[flavorId];
+              const individualProductRef = doc(productsCollectionRef, flavorId);
+              const individualProduct = allProducts.find(p => p.id === flavorId); // Buscar el producto individual en allProducts
+
+              // Asegurarse de que el producto individual existe y tiene suficiente stock
+              if (individualProduct && individualProduct.stock !== undefined && individualProduct.stock >= selectedCount * item.quantity) {
+                batch.update(individualProductRef, {
+                  stock: individualProduct.stock - (selectedCount * item.quantity) // Restar la cantidad total de unidades individuales
+                });
+              } else {
+                // Si el stock es insuficiente o el producto no se encuentra, notificar y no procesar el pedido
+                showNotification(`Error: Stock insuficiente para el sabor de empanada "${individualProduct?.name || 'ID:' + flavorId}". Pedido no procesado.`, 'error', 7000);
+                // Si hay un error de stock, se debe lanzar un error para abortar el batch
+                throw new Error(`Stock insuficiente para el sabor de empanada "${individualProduct?.name || 'ID:' + flavorId}".`);
+              }
+            }
+            // También se debe restar del stock del producto "contenedor" (ej. "Media Docena de Empanadas")
+            const containerProductRef = doc(productsCollectionRef, item.id);
+            const containerProduct = allProducts.find(p => p.id === item.id);
+            if (containerProduct && containerProduct.stock !== undefined && containerProduct.stock >= item.quantity) {
+                batch.update(containerProductRef, {
+                    stock: containerProduct.stock - item.quantity // Restar la cantidad de paquetes
+                });
             } else {
-              showNotification(`Advertencia: Stock insuficiente para ${item.name}.`, 'warning', 5000);
+                showNotification(`Error: Stock insuficiente para el paquete "${containerProduct?.name || item.name}". Pedido no procesado.`, 'error', 7000);
+                throw new Error(`Stock insuficiente para el paquete "${containerProduct?.name || item.name}".`);
+            }
+          } else {
+            // Lógica de stock existente para otros productos (unidades, pizzas, pastas, etc.)
+            if (item.id) {
+              const productDocRef = doc(productsCollectionRef, item.id);
+              // Calcular la cantidad real de unidades que se restarán del stock
+              let unitsToSubtract = item.quantity;
+              if (['Empanadas y Canastitas'].includes(item.category) && item.selectedQuantityType) {
+                if (item.selectedQuantityType === 'mediaDocena') {
+                  unitsToSubtract = item.quantity * 6;
+                } else if (item.selectedQuantityType === 'docena') {
+                  unitsToSubtract = item.quantity * 12;
+                }
+              }
+
+              const currentProductInAllProducts = allProducts.find(p => p.id === item.id); // Obtener el producto actual para su stock
+              if (currentProductInAllProducts && currentProductInAllProducts.stock !== undefined && currentProductInAllProducts.stock >= unitsToSubtract) {
+                batch.update(productDocRef, {
+                  stock: currentProductInAllProducts.stock - unitsToSubtract
+                });
+              } else {
+                showNotification(`Error: Stock insuficiente para ${item.name}. Pedido no procesado.`, 'error', 7000);
+                throw new Error(`Stock insuficiente para ${item.name}.`);
+              }
             }
           }
         }
@@ -242,13 +361,19 @@ ${notes ? `\n*Notas del Cliente:* ${notes}` : ''}
             name: item.name,
             quantity: item.quantity,
             precio: item.precio,
+            precioMediaDocena: item.precioMediaDocena || null, // NUEVO
+            precioDocena: item.precioDocena || null, // NUEVO
             imageUrl: item.image || item.imageUrl,
             selectedSauce: item.selectedSauce || null,
             selectedFlavor: item.selectedFlavor || null,
-            selectedSize: item.selectedSize || null, // AHORA INCLUYE TAMAÑO EN EL OBJETO DE LA ORDEN
+            selectedSize: item.selectedSize || null,
+            selectedCombinedPizza: item.selectedCombinedPizza || null,
+            selectedQuantityType: item.selectedQuantityType || null, // NUEVO
+            combinedEmpanadaFlavors: item.combinedEmpanadaFlavors || null, // NUEVO: Guardar los sabores combinados
+            category: item.category, // Asegurarse de pasar la categoría
           })),
           total: totalCalculated,
-          customerInfo: { name, address, phone },
+          customerInfo: { name, address, phone, orderType, orderTime: finalOrderTime, deliveryMethod, cashAmount: parseFloat(cashAmount) || 0, change: changeAmount, notes }, // Pasa orderType y el finalOrderTime
           paymentMethod: paymentMethod,
           cashAmount: parseFloat(cashAmount) || 0,
           change: changeAmount,
@@ -280,7 +405,8 @@ ${notes ? `\n*Notas del Cliente:* ${notes}` : ''}
         } else if (firebaseError.code === 'not-found') {
           userErrorMessage = 'Error: Algunos productos no se encontraron en la base de datos al actualizar el stock. El pedido no se procesó.';
         } else {
-          userErrorMessage = `Error desconocido al procesar el pedido: ${firebaseError.message}`;
+          // Si el error fue lanzado por stock insuficiente, el mensaje ya es informativo
+          userErrorMessage = firebaseError.message.includes("Stock insuficiente") ? firebaseError.message : `Error desconocido al procesar el pedido: ${firebaseError.message}`;
         }
         showNotification(userErrorMessage, 'error', 7000);
         return;
@@ -299,7 +425,7 @@ ${notes ? `\n*Notas del Cliente:* ${notes}` : ''}
       
       handleClearCart(); // Limpiar el carrito después de enviar el pedido
     },
-    [cartItems, showNotification, db, userId, handleClearCart, localProjectId, actualAppIdForFirestore, existingOrdersCount] // Añadido existingOrdersCount a las dependencias
+    [cartItems, showNotification, db, userId, handleClearCart, localProjectId, actualAppIdForFirestore, existingOrdersCount, allProducts] // Añadido allProducts a las dependencias
   );
 
   return {
